@@ -1,1 +1,1 @@
-# my-vps
+# my linux server configuration
