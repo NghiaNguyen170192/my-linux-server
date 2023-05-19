@@ -1,0 +1,12 @@
+version: "3"
+
+services:
+  blog:
+    image: 's3343711/personal-blog:latest'
+    hostname: blog
+    container_name: blog
+    networks:
+      - nginx-network
+networks:
+  nginx-network:
+    external: true
