@@ -11,15 +11,11 @@ services:
       - '81:81'
       - '443:443'
     volumes:
-      - ./nginx-proxy-manager/data:/data
-      - ./nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+      - /selfhost-data/networking/nginx-proxy-manager/data:/data
+      - /selfhost-data/networking/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
     networks:
       - nginx-network
-      
-networks:
-  nginx-network:
-    external: true
-    
+
   # pihole:
   #   container_name: pihole
   #   image: pihole/pihole:latest
@@ -32,8 +28,8 @@ networks:
   #   - TZ=${PIHOLE_PWD}
   #   # Volumes store your data between container upgrades
   #   volumes:
-  #     - './etc-pihole:/etc/pihole'
-  #     - './etc-dnsmasq.d:/etc/dnsmasq.d'
+  #     - '/selfhost-data/networking/etc-pihole:/etc/pihole'
+  #     - '/selfhost-data/networking/etc-dnsmasq.d:/etc/dnsmasq.d'
   #   #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
   #   restart: unless-stopped
   #   networks:
@@ -47,9 +43,9 @@ networks:
   #     - NET_ADMIN
   #     - NET_RAW
   #   volumes:
-  #     - "${ROOT}/config/fail2ban:/data"
-  #     - "/var/log/auth.log:/var/log/auth.log:ro"
-  #     - "${ROOT}/nginx-proxy-manager/data/logs/:/log/npm/:ro"
+  #     - "/selfhost-data/networking/fail2ban/data:/data"
+  #     - "/selfhost-data/networking/fail2ban/var/log/auth.log:/var/log/auth.log:ro"
+  #     - "/selfhost-data/networking/nginx-proxy-manager/data/logs/:/log/npm/:ro"
   #   restart: always
   #   environment:
   #   - TZ=${TZ}
@@ -58,3 +54,8 @@ networks:
   #   - F2B_DB_PURGE_AGE=1d
   #   networks:
   #     - nginx-network    
+
+networks:
+  nginx-network:
+    external: true
+    

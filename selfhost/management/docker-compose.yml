@@ -7,8 +7,8 @@ services:
     image: ghcr.io/ajnart/homarr:latest
     restart: unless-stopped
     volumes:
-      - ./homarr/app/data/configs:/app/data/configs
-      - ./homarr/app/public/icons:/app/public/icons
+      - /selfhost-data/management/homarr/app/data/configs:/app/data/configs
+      - /selfhost-data/management/homarr/app/public/icons:/app/public/icons
       - /var/run/docker.sock:/var/run/docker.sock
     # ports: 
     #   - 7575: 7575
@@ -25,7 +25,7 @@ services:
     # ports: 
     #   - 3000
     volumes:
-      - ./grafana/var/lib/grafana:/var/lib/grafana
+      - /selfhost-data/management/grafana/var/lib/grafana:/var/lib/grafana
     restart: unless-stopped
     networks:
       - nginx-network
@@ -42,11 +42,10 @@ services:
       - nginx-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./portainer_data/data:/data
+      - /selfhost-data/management/portainer-data/data:/data
 
 volumes:
-  portainer_data:
-    external: true
+  portainer-data:
 
 networks:
   nginx-network:
