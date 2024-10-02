@@ -1,0 +1,13 @@
+version: "3"
+
+services:
+  blog:
+    image: 's3343711/astro-blog'
+    hostname: blog
+    container_name: blog
+    networks:
+      - nginx-network
+      
+networks:
+  nginx-network:
+    external: true
