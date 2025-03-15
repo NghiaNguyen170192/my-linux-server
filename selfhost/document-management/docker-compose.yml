@@ -1,0 +1,22 @@
+version: '3.3'
+
+services:
+  komga:
+    image: gotson/komga
+    container_name: komga
+    hostname: komga
+    volumes:
+      - '~/selfhost-data/document-management/komga/config:/config' # Update with actual path
+      - '~/selfhost-data/document-management/komga/data:/data'     # Update with actual path
+      - '/etc/timezone:/etc/timezone:ro' 
+    # ports:
+      # - 25600:25600
+    user: "1000:1000"
+    restart: unless-stopped
+    networks:
+      - nginx-network
+      
+networks:
+  nginx-network:
+    external: true
+

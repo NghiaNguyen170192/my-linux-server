@@ -1,20 +1,36 @@
 version: '3'
 
 services:
+  # nginx:
+  #   image: nginx:latest
+  #   hostname: nginx
+  #   container_name: nginx
+  #   volumes:
+  #     - type: bind
+  #       source: ./proxy/nginx.conf
+  #       target: /etc/nginx/conf.d/default.conf
+  #       read_only: true
+  #   ports:
+  #     - 80:80
+  #   networks:
+  #     - nginx-network
+ 
   npm:
     hostname: npm
     container_name: nginx-proxy-manager
     image: 'jc21/nginx-proxy-manager:latest'
-    restart: unless-stopped
+    restart: always
     ports:
       - '80:80'
       - '81:81'
       - '443:443'
     volumes:
-      - /selfhost-data/networking/nginx-proxy-manager/data:/data
-      - /selfhost-data/networking/nginx-proxy-manager/letsencrypt:/etc/letsencrypt
+      - '~/selfhost-data/networking/nginx-proxy-manager/data:/data'
+      - '~/selfhost-data/networking/nginx-proxy-manager/letsencrypt:/etc/letsencrypt'
     networks:
-      - nginx-network
+      - nginx-network      
+    # environment:
+    #   DISABLE_IPV6: 'true'
 
   # pihole:
   #   container_name: pihole

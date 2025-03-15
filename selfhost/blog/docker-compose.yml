@@ -5,9 +5,11 @@ services:
     image: 's3343711/astro-blog'
     hostname: blog
     container_name: blog
+    restart: unless-stopped
     networks:
       - nginx-network
       
 networks:
   nginx-network:
     external: true
+
