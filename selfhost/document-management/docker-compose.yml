@@ -1,0 +1,19 @@
+services:
+  komga:
+    image: gotson/komga
+    container_name: komga
+    hostname: komga
+    volumes:
+      - /path/to/config:/config
+      - /path/to/data:/data
+      - /etc/timezone:/etc/timezone:ro 
+    expose:
+      - "25600"
+    user: "1000:1000"
+    restart: unless-stopped
+    networks:
+      - nginx-network
+      
+networks:
+  nginx-network:
+    external: true

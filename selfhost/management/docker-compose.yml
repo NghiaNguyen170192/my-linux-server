@@ -10,8 +10,8 @@ services:
       - /selfhost-data/management/homarr/app/data/configs:/app/data/configs
       - /selfhost-data/management/homarr/app/public/icons:/app/public/icons
       - /var/run/docker.sock:/var/run/docker.sock
-    # ports: 
-    #   - 7575: 7575
+    expose: 
+      - "7575"
     networks:
       - nginx-network
   
@@ -22,8 +22,8 @@ services:
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
-    # ports: 
-    #   - 3000
+    expose: 
+      - "3000"
     volumes:
       - /selfhost-data/management/grafana/var/lib/grafana:/var/lib/grafana
     restart: unless-stopped
@@ -35,9 +35,9 @@ services:
     hostname: portainer
     image: portainer/portainer-ce:latest
     restart: unless-stopped
-    # ports: 
-    #   - 8000:8000
-    #   - 9443:9443
+    expose: 
+      - "8000"
+      - "9443"
     networks:
       - nginx-network
     volumes:
