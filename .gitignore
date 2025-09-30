@@ -217,3 +217,18 @@ __marimo__/
 
 *cloudflare.ini
 *default.conf
+ssl/
+*/.env
+
+*logs/
+
+# Environment files (recursive) -- ensure all service .env files are ignored
+# Base .env files anywhere
+**/.env
+# Common variants
+**/.env.*
+# But keep example/template env files if you add them later
+!**/.env.example
+!**/.env.template
+!**/.env.sample
+

@@ -3,6 +3,12 @@ services:
     image: 's3343711/astro-blog'
     hostname: blog
     container_name: blog
+    env_file:
+      - .env
+    environment:
+      - TZ=${TZ}
+    expose:
+      - "3000"
     networks:
       - nginx-network
       
