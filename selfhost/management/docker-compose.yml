@@ -23,8 +23,6 @@ services:
     hostname: grafana
     image: grafana/grafana-oss:latest
     container_name: grafana
-    env_file:
-      - .env
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -42,8 +40,6 @@ services:
     hostname: portainer
     image: portainer/portainer-ce:latest
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - TZ=${TZ}
     expose:
