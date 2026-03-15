@@ -6,8 +6,8 @@ services:
     container_name: komga
     hostname: komga
     volumes:
-      - '~/selfhost-data/document-management/komga/config:/config' # Update with actual path
-      - '~/selfhost-data/document-management/komga/data:/data'     # Update with actual path
+      - '$HOME/selfhost-data/document-management/komga/config:/config' # Update with actual path
+      - '$HOME/selfhost-data/document-management/komga/data:/data'     # Update with actual path
       - '/etc/timezone:/etc/timezone:ro' 
     # ports:
       # - 25600:25600

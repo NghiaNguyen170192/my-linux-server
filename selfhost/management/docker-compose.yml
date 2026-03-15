@@ -7,8 +7,8 @@ services:
     image: ghcr.io/ajnart/homarr:latest
     restart: unless-stopped
     volumes:
-      - '~/selfhost-data/management/homarr/app/data/configs:/app/data/configs'
-      - '~/selfhost-data/management/homarr/app/public/icons:/app/public/icons'
+      - '$HOME/selfhost-data/management/homarr/app/data/configs:/app/data/configs'
+      - '$HOME/selfhost-data/management/homarr/app/public/icons:/app/public/icons'
       - '/var/run/docker.sock:/var/run/docker.sock'
     # ports: 
     #   - 7575: 7575
@@ -44,7 +44,80 @@ services:
       #- nginx-ipv6-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - '~/selfhost-data/management/portainer/data:/data'
+      - '$HOME/selfhost-data/management/portainer/data:/data'
+
+  keycloak-db-init:
+    image: postgres:13
+    container_name: keycloak-db-init
+    hostname: keycloak-db-init
+    restart: "no"
+    entrypoint: >
+      /bin/bash -ec "
+      psql -h ${KEYCLOAK_DB_HOST} -U ${KEYCLOAK_BOOTSTRAP_DB_USER} -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${KEYCLOAK_DB_USER}') THEN
+          CREATE ROLE ${KEYCLOAK_DB_USER} LOGIN PASSWORD '${KEYCLOAK_DB_PASSWORD}';
+        ELSE
+          ALTER ROLE ${KEYCLOAK_DB_USER} LOGIN PASSWORD '${KEYCLOAK_DB_PASSWORD}';
+        END IF;
+      END
+      $$;
+      SQL
+
+      if ! psql -h ${KEYCLOAK_DB_HOST} -U ${KEYCLOAK_BOOTSTRAP_DB_USER} -d postgres -tAc \"SELECT 1 FROM pg_database WHERE datname='${KEYCLOAK_DB_NAME}'\" | grep -q 1; then
+        createdb -h ${KEYCLOAK_DB_HOST} -U ${KEYCLOAK_BOOTSTRAP_DB_USER} -O ${KEYCLOAK_DB_USER} ${KEYCLOAK_DB_NAME};
+      fi
+
+      psql -h ${KEYCLOAK_DB_HOST} -U ${KEYCLOAK_BOOTSTRAP_DB_USER} -d postgres -v ON_ERROR_STOP=1 -c \"GRANT ALL PRIVILEGES ON DATABASE ${KEYCLOAK_DB_NAME} TO ${KEYCLOAK_DB_USER};\"
+      "
+    environment:
+      KEYCLOAK_DB_HOST: ${KEYCLOAK_DB_HOST:-postgres}
+      KEYCLOAK_BOOTSTRAP_DB_USER: ${KEYCLOAK_BOOTSTRAP_DB_USER}
+      KEYCLOAK_DB_USER: ${KEYCLOAK_DB_USER}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_DB_NAME: ${KEYCLOAK_DB_NAME:-keycloak}
+      PGPASSWORD: ${KEYCLOAK_BOOTSTRAP_DB_PASSWORD}
+    networks:
+      - nginx-network
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: keycloak
+    hostname: keycloak
+    restart: unless-stopped
+    command:
+      - start
+      - --proxy-headers
+      - xforwarded
+      - --http-enabled=true
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://${KEYCLOAK_DB_HOST:-postgres}:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USER}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-keycloak.nqtn.dev}
+    expose:
+      - "8080"
+    depends_on:
+      keycloak-db-init:
+        condition: service_completed_successfully
+    networks:
+      - nginx-network
+
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: redisinsight
+    hostname: redisinsight
+    restart: unless-stopped
+    expose:
+      - "5540"
+    volumes:
+      - '$HOME/selfhost-data/management/redisinsight/data:/data'
+    networks:
+      - nginx-network
 
 volumes:
   portainer-data:

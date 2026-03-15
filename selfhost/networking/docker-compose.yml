@@ -1,75 +1,61 @@
 version: '3'
 
 services:
-  # nginx:
-  #   image: nginx:latest
-  #   hostname: nginx
-  #   container_name: nginx
-  #   volumes:
-  #     - type: bind
-  #       source: ./proxy/nginx.conf
-  #       target: /etc/nginx/conf.d/default.conf
-  #       read_only: true
-  #   ports:
-  #     - 80:80
-  #   networks:
-  #     - nginx-network
- 
-  npm:
-    hostname: npm
-    container_name: nginx-proxy-manager
-    image: 'jc21/nginx-proxy-manager:latest'
-    restart: always
+  nginx:
+    image: nginx:alpine
+    hostname: nginx
+    container_name: nginx
+    restart: unless-stopped
     ports:
       - '80:80'
-      - '81:81'
       - '443:443'
     volumes:
-      - '~/selfhost-data/networking/nginx-proxy-manager/data:/data'
-      - '~/selfhost-data/networking/nginx-proxy-manager/letsencrypt:/etc/letsencrypt'
+      - './nginx/conf.d:/etc/nginx/conf.d:ro'
+      - './certbot/www:/var/www/certbot'
+      - '$HOME/selfhost-data/networking/nginx/ssl:/etc/letsencrypt'
+      - '$HOME/selfhost-data/networking/nginx/logs:/var/log/nginx'
     networks:
-      - nginx-network      
-    # environment:
-    #   DISABLE_IPV6: 'true'
+      - nginx-network
+ 
 
-  # pihole:
-  #   container_name: pihole
-  #   image: pihole/pihole:latest
-  #   ports:
-  #     - "53:53/tcp"
-  #     - "53:53/udp"
-  #     - "82:80/tcp"
-  #   environment:
-  #   - TZ=${TZ}
-  #   - TZ=${PIHOLE_PWD}
-  #   # Volumes store your data between container upgrades
-  #   volumes:
-  #     - '/selfhost-data/networking/etc-pihole:/etc/pihole'
-  #     - '/selfhost-data/networking/etc-dnsmasq.d:/etc/dnsmasq.d'
-  #   #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
-  #   restart: unless-stopped
-  #   networks:
-  #     - nginx-network    
+  # Do not run Pi-hole and AdGuard Home together on the same host: both need port 53.
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    profiles:
+      - pihole
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "82:80/tcp"
+    environment:
+      - TZ=${TZ}
+      - FTLCONF_webserver_api_password=${PIHOLE_PWD}
+    volumes:
+      - '$HOME/selfhost-data/networking/pihole/etc-pihole:/etc/pihole'
+      - '$HOME/selfhost-data/networking/pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
+    restart: unless-stopped
+    networks:
+      - nginx-network
 
-  # fail2ban:
-  #   image: crazymax/fail2ban:latest
-  #   container_name: fail2ban
-  #   network_mode: "host"
-  #   cap_add:
-  #     - NET_ADMIN
-  #     - NET_RAW
-  #   volumes:
-  #     - "/selfhost-data/networking/fail2ban/data:/data"
-  #     - "/selfhost-data/networking/fail2ban/var/log/auth.log:/var/log/auth.log:ro"
-  #     - "/selfhost-data/networking/nginx-proxy-manager/data/logs/:/log/npm/:ro"
-  #   restart: always
-  #   environment:
-  #   - TZ=${TZ}
-  #   - F2B_LOG_TARGET=STDOUT
-  #   - F2B_LOG_LEVEL=INFO
-  #   - F2B_DB_PURGE_AGE=1d
-  #   networks:
-  #     - nginx-network    
+  fail2ban:
+    image: crazymax/fail2ban:latest
+    container_name: fail2ban
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      - '$HOME/selfhost-data/networking/fail2ban/data:/data'
+      - '/var/log/auth.log:/var/log/auth.log:ro'
+      - '$HOME/selfhost-data/networking/nginx/logs:/var/log/nginx:ro'
+      - './fail2ban/jail.d:/data/jail.d:ro'
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+      - F2B_LOG_TARGET=STDOUT
+      - F2B_LOG_LEVEL=INFO
+      - F2B_DB_PURGE_AGE=1d
 
 networks:
   nginx-network:
