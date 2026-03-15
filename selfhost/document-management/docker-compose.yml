@@ -6,11 +6,11 @@ services:
     container_name: komga
     hostname: komga
     volumes:
-      - '$HOME/selfhost-data/document-management/komga/config:/config' # Update with actual path
-      - '$HOME/selfhost-data/document-management/komga/data:/data'     # Update with actual path
-      - '/etc/timezone:/etc/timezone:ro' 
-    # ports:
-      # - 25600:25600
+      - '$HOME/selfhost-data/document-management/komga/config:/config'
+      - '$HOME/selfhost-data/document-management/komga/data:/data'
+      - '/etc/timezone:/etc/timezone:ro'
+    expose:
+      - "25600"
     user: "1000:1000"
     restart: unless-stopped
     networks:
