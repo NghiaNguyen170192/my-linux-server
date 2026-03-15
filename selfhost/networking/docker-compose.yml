@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   nginx:
     image: nginx:alpine
@@ -16,9 +14,26 @@ services:
       - '$HOME/selfhost-data/networking/nginx/logs:/var/log/nginx'
     networks:
       - nginx-network
- 
 
-  # Do not run Pi-hole and AdGuard Home together on the same host: both need port 53.
+  certbot:
+    image: certbot/dns-cloudflare
+    container_name: certbot
+    profiles:
+      - certbot
+    volumes:
+      - './certbot/cloudflare.ini:/secrets/cloudflare.ini:ro'
+      - '$HOME/selfhost-data/networking/nginx/ssl:/etc/letsencrypt'
+    command: >
+      certonly --dns-cloudflare
+      --dns-cloudflare-credentials /secrets/cloudflare.ini
+      --dns-cloudflare-propagation-seconds 30
+      -d ${CERTBOT_DOMAIN} -d ${CERTBOT_WILDCARD_DOMAIN}
+      --non-interactive --agree-tos
+      --email ${CERTBOT_EMAIL}
+    networks:
+      - nginx-network
+
+  # Keep Pi-hole optional; it uses port 53 and should not run with another DNS blocker.
   pihole:
     container_name: pihole
     image: pihole/pihole:latest
@@ -60,4 +75,3 @@ services:
 networks:
   nginx-network:
     external: true
-    

@@ -1,7 +1,12 @@
 # Environment files
 .env
 *.env
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
+!**/.env.template
+!**/.env.sample
 
 # Secrets and credentials
 secrets/
@@ -21,14 +26,22 @@ service-account*.json
 *.age
 *.sops.yaml
 
-# Logs
+# Logs and runtime data
 *.log
+*logs/
+*.rdb
+*.aof
+*.pid
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
 
 # OS files
 .DS_Store
@@ -48,7 +61,6 @@ terraform/*_override.tf
 terraform/*_override.tf.json
 terraform/.terraformrc
 terraform/terraform.rc
-
 
 # IDEs
 .vscode/

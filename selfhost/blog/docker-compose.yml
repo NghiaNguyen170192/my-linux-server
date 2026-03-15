@@ -1,11 +1,11 @@
-version: "3"
-
 services:
   blog:
     image: 's3343711/astro-blog'
     hostname: blog
     container_name: blog
     restart: unless-stopped
+    expose:
+      - "8080"
     networks:
       - nginx-network
       

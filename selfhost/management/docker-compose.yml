@@ -1,47 +1,32 @@
-version: '3'
-
 services:
   homarr:
     hostname: homarr
     container_name: homarr
     image: ghcr.io/ajnart/homarr:latest
     restart: unless-stopped
+    environment:
+      - TZ=${TZ:-UTC}
     volumes:
       - '$HOME/selfhost-data/management/homarr/app/data/configs:/app/data/configs'
       - '$HOME/selfhost-data/management/homarr/app/public/icons:/app/public/icons'
       - '/var/run/docker.sock:/var/run/docker.sock'
-    # ports: 
-    #   - 7575: 7575
+    expose:
+      - "7575"
     networks:
       - nginx-network
-  
-  #grafana:
-    #hostname: grafana
-    #image: grafana/grafana-oss:latest
-    #container_name: grafana
-    #environment:
-      #- PUID=${PUID}
-      #- PGID=${PGID}
-    # ports: 
-    #   - 3000
-    #volumes:
-      #- /selfhost-data/management/grafana/var/lib/grafana:/var/lib/grafana
-    #restart: unless-stopped
-    #networks:
-      #- nginx-network
-      #- nginx-ipv6-network
 
   portainer:
     container_name: portainer
     hostname: portainer
     image: portainer/portainer-ce:latest
     restart: unless-stopped
-#    ports: 
-#      - 8000:8000
-#      - 9443:9443
+    environment:
+      - TZ=${TZ}
+    expose:
+      - "8000"
+      - "9443"
     networks:
       - nginx-network
-      #- nginx-ipv6-network
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - '$HOME/selfhost-data/management/portainer/data:/data'
@@ -124,4 +109,4 @@ volumes:
 
 networks:
   nginx-network:
-    external: true    
+    external: true
