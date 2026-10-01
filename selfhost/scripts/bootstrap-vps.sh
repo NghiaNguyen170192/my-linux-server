@@ -89,6 +89,15 @@ install -d -o "${owner}" -g "${owner}" -m 0750 /var/lib/selfhost
 
 timedatectl set-ntp true || true
 
+# Daily Let's Encrypt renewal. The script reloads nginx only after a successful renew.
+cron_file=/etc/cron.d/selfhost-certbot
+cat > "${cron_file}" <<EOF
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 3 * * * root ${SRC}/scripts/renew-cert.sh >> /var/log/cert-renew.log 2>&1
+EOF
+chmod 644 "${cron_file}"
+
 if [[ "${CLOUDFLARE_ONLY}" -eq 1 ]]; then
   bash "${SRC}/scripts/ufw-cloudflare.sh" --yes
 else

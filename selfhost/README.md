@@ -21,6 +21,7 @@ selfhost/
 ├── scripts/
 │   ├── bootstrap-vps.sh
 │   ├── issue-cert.sh
+│   ├── ci-deploy.sh
 │   ├── deploy.sh
 │   ├── ufw-cloudflare.sh
 │   ├── update-cloudflare-ips.sh
@@ -36,7 +37,7 @@ Two Docker networks:
 
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 
-Day-to-day commands, from this directory:
+Merging to `main` runs these from this directory. The same commands work over SSH when you need them on the server:
 
 ```bash
 bash scripts/issue-cert.sh

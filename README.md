@@ -2,7 +2,7 @@
 
 Docker services on a VPS, with nginx as the only process on ports 80 and 443. Cloudflare proxies the domain, Let's Encrypt proves ownership through the Cloudflare DNS API, and the host firewall, fail2ban, and SSH settings sit in front of the containers.
 
-The stacks live in [`selfhost/`](selfhost/README.md). Commands below assume you are in that directory on the server.
+The stacks live in [`selfhost/`](selfhost/README.md). A merged pull request to `main` deploys them. GitHub Actions copies this repo to the VPS, writes the credentials from GitHub Secrets, and runs the scripts in `selfhost/scripts/`.
 
 ## Services
 
@@ -45,107 +45,73 @@ Use a VPS with 2 vCPU and 4 GB of RAM when Airflow is included. Ubuntu 24.04 or 
 In the Cloudflare dashboard for `nqtn.dev`:
 
 1. **DNS → Records**. Add an `A` record for `@` pointing at the VPS IPv4 address, proxy on (orange cloud). Add an `A` record for `*` with the same address, proxy on. Add an `AAAA` record for each if the VPS has IPv6. Proxied wildcards work on every Cloudflare plan.
-2. **SSL/TLS → Overview**. Set the mode to **Full (strict)** after the origin certificate exists (step 5). Before that, Cloudflare returns error 526, which is expected.
+2. **SSL/TLS → Overview**. Set the mode to **Full (strict)** after the first successful deploy. Before the origin certificate exists, Cloudflare returns error 526, which is expected.
 3. **SSL/TLS → Edge Certificates**. Turn on **Always Use HTTPS** and **Automatic HTTPS Rewrites**. Set **Minimum TLS Version** to 1.2.
 4. **Security → Settings**. Turn on **Bot Fight Mode**. Leave the free managed WAF ruleset enabled.
-5. **My Profile → API Tokens → Create Token**. Use the **Edit zone DNS** template and limit it to `nqtn.dev`. This token is only for certificate issuance.
+5. **My Profile → API Tokens → Create Token**. Use the **Edit zone DNS** template and limit it to `nqtn.dev`. Save it as the GitHub secret `CLOUDFLARE_API_TOKEN`. It is only for certificate issuance.
 6. Copy the **Zone ID** from the domain overview page. A second token, limited to the same zone with **Zone → Firewall Services → Edit**, is used later by fail2ban.
 
 Turn on two-factor authentication for the Cloudflare account.
 
-## 2. Put the repo on the server
+## 2. Deploy from GitHub
 
-```bash
-sudo mkdir -p /opt/my-linux-server
-sudo chown "$USER:$USER" /opt/my-linux-server
-git clone <your-remote-url> /opt/my-linux-server
-cd /opt/my-linux-server/selfhost
-```
+Merging a pull request into `main` starts the [Deploy workflow](.github/workflows/deploy.yml). You can also run it by hand from the Actions tab. The workflow SSHes to the VPS, copies the repository to `/opt/my-linux-server`, writes `selfhost/.env` and `selfhost/networking/certbot/cloudflare.ini` from secrets, issues the certificate when it is missing, and starts the containers. Those files stay on the server. They are not committed.
 
-The scripts call `bash`, so they do not need the executable bit.
+Add these repository secrets before the first merge. Settings → Secrets and variables → Actions → Secrets:
 
-## 3. Prepare the host
+| Secret | Value |
+| --- | --- |
+| `SSH_HOST` | VPS address, `199.241.138.175` |
+| `SSH_USER` | Deploy user on the VPS |
+| `SSH_PRIVATE_KEY` | Private key that can log in as that user |
+| `CERTBOT_EMAIL` | Mailbox Let's Encrypt uses for expiry notices |
+| `CLOUDFLARE_API_TOKEN` | Zone DNS edit token from step 1 |
+| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login |
+| `POSTGRES_PASSWORD` | Postgres |
+| `REDIS_PASSWORD` | Redis |
+| `MINIO_ROOT_PASSWORD` | MinIO |
+| `PGADMIN_DEFAULT_PASSWORD` | pgAdmin |
+| `AIRFLOW_WWW_USER_PASSWORD` | Airflow |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana |
+| `KEYCLOAK_DB_PASSWORD` | Keycloak database |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin |
+| `FERNET_KEY` | Airflow Fernet key, see below |
+| `HOMARR_SECRET_ENCRYPTION_KEY` | Homarr key, see below |
 
-This installs Docker Engine, the Compose plugin, UFW, fail2ban, and unattended security upgrades. It allows SSH plus public 80/443, and creates `/var/lib/selfhost` for your user.
-
-```bash
-sudo bash scripts/bootstrap-vps.sh
-```
-
-Log out and back in so your user joins the `docker` group.
-
-The script opens port 22. If SSH listens on another port, change the `ufw allow` line in `scripts/bootstrap-vps.sh` and `scripts/ufw-cloudflare.sh` before you run them.
-
-## 4. Fill in secrets
-
-```bash
-cp .env.example .env
-cp networking/certbot/cloudflare.ini.example networking/certbot/cloudflare.ini
-chmod 600 .env networking/certbot/cloudflare.ini
-```
-
-Edit `networking/certbot/cloudflare.ini` and set `dns_cloudflare_api_token` to the DNS token from step 1.
-
-Edit `.env`:
-
-- `CERTBOT_EMAIL` is a mailbox you read. Let's Encrypt uses it for expiry notices.
-- Passwords are 16 or more letters and digits. Symbols break the Redis and database URLs.
-- Generate the two keys on the server:
+Passwords are 16 or more letters and digits. Symbols break the Redis and database URLs. Generate the two keys locally and store them in a password manager:
 
 ```bash
 python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
 openssl rand -hex 32
 ```
 
-Put the first value in `FERNET_KEY` and the second in `HOMARR_SECRET_ENCRYPTION_KEY`.
+The first value is `FERNET_KEY`. The second is `HOMARR_SECRET_ENCRYPTION_KEY` (64 hex characters). `selfhost/data/config/airflow.cfg` used to contain a Fernet key. That file is gone. Generate a new key. If that old file was ever pushed or copied off the machine, treat the old key as public and leave it unused.
 
-`selfhost/data/config/airflow.cfg` used to contain a Fernet key. That file is gone. Generate a new key. If that old file was ever pushed or copied off the machine, treat the old key as public and leave it unused.
+Optional repository variable `DEPLOY_ARGS` is passed to `scripts/deploy.sh`. Leave it empty for the full stack. `--without-data` skips Airflow and its databases. `--with-adguard`, `--with-komga`, and `--with-flower` add those services. Optional variable `SSH_PORT` defaults to 22.
 
-## 5. Issue the certificate
+### One-time access on the VPS
 
-Certbot creates a TXT record through the Cloudflare API, then stores a certificate for `nqtn.dev` and `*.nqtn.dev` in `networking/certbot/conf/`.
-
-If this machine already has a certificate tree in `networking/nginx/ssl` (the old mount), move it instead of issuing again:
+GitHub needs an SSH login. On the server, as root, create the deploy user and the directory the workflow writes to. Replace the key with the public half of `SSH_PRIVATE_KEY`:
 
 ```bash
-mv networking/nginx/ssl networking/certbot/conf
+adduser --disabled-password --gecos "" deploy
+install -d -o deploy -g deploy -m 700 /home/deploy/.ssh /opt/my-linux-server
+printf '%s\n' 'ssh-ed25519 AAAA... deploy@github' > /home/deploy/.ssh/authorized_keys
+chown deploy:deploy /home/deploy/.ssh/authorized_keys
+chmod 600 /home/deploy/.ssh/authorized_keys
+printf '%s\n' 'deploy ALL=(ALL) NOPASSWD: /usr/bin/bash /opt/my-linux-server/selfhost/scripts/bootstrap-vps.sh' > /etc/sudoers.d/selfhost-deploy
+chmod 440 /etc/sudoers.d/selfhost-deploy
 ```
 
-Otherwise:
+Use the same username in `SSH_USER`. If SSH is not on port 22, set `SSH_PORT` and change the `ufw allow` line in `scripts/bootstrap-vps.sh` and `scripts/ufw-cloudflare.sh` before the first deploy.
 
-```bash
-bash scripts/issue-cert.sh
-```
+Then, in GitHub, Actions → Deploy → Run workflow, and enable **bootstrap**. That installs Docker, UFW, fail2ban, unattended upgrades, and the daily certificate renewal cron. After it finishes, run Deploy once more with bootstrap off. The second run is a new login, so the deploy user is in the `docker` group.
 
-The certificate is trusted by browsers. Cloudflare checks it when the SSL mode is Full (strict).
+Later merges to `main` deploy on their own. Bootstrap stays off. The cron at `/etc/cron.d/selfhost-certbot` renews the certificate every day at 03:00 between deploys.
 
-Renewal is a daily cron entry. Use the real path of the script:
+The certificate covers `nqtn.dev` and `*.nqtn.dev`. If this machine already has a certificate tree in `selfhost/networking/nginx/ssl`, move it to `selfhost/networking/certbot/conf` before the first deploy so Certbot does not issue a duplicate. Set Cloudflare SSL/TLS to **Full (strict)** after that deploy succeeds, then open https://nqtn.dev.
 
-```bash
-sudo crontab -e
-```
-
-```
-0 3 * * * /opt/my-linux-server/selfhost/scripts/renew-cert.sh >> /var/log/cert-renew.log 2>&1
-```
-
-## 6. Start the containers
-
-```bash
-bash scripts/deploy.sh
-```
-
-That creates the `nginx-network` and `data-internal` networks, then starts nginx, the blog, Airflow, and the management stack.
-
-On a smaller VPS, skip Airflow, Postgres, Redis, MinIO, and pgAdmin:
-
-```bash
-bash scripts/deploy.sh --without-data
-```
-
-Set Cloudflare SSL/TLS to **Full (strict)** if you have not already. Then open https://nqtn.dev.
-
-The blog image is `s3343711/astro-blog`. If the pull is denied, run `docker login` with an account that can read that image and deploy again.
+The blog image is `s3343711/astro-blog`. If the pull is denied, log in on the server with an account that can read that image and run the workflow again.
 
 ## 7. Accept web traffic only from Cloudflare
 
@@ -257,6 +223,8 @@ https://flower.nqtn.dev shows Celery workers. Put it behind Cloudflare Access wi
 
 ## 13. Operate
 
+Day-to-day changes go out by merging a pull request to `main`. The workflow writes the current secrets and recreates the containers. On the server, from `/opt/my-linux-server/selfhost`, these are the same commands the workflow runs:
+
 Stop containers and keep volumes:
 
 ```bash
@@ -293,7 +261,7 @@ Logs: `docker logs nginx`, `docker logs airflow-scheduler`, and files in `/var/l
 ## Checklist
 
 - Cloudflare proxy is on for `@` and `*`, SSL mode is Full (strict), minimum TLS is 1.2, Bot Fight Mode is on.
-- `.env` and `cloudflare.ini` are mode 600 and are not committed.
+- The GitHub secrets in section 2 are set. `.env` and `cloudflare.ini` exist only on the server, mode 600, and are not committed.
 - `FERNET_KEY` and `HOMARR_SECRET_ENCRYPTION_KEY` are new values stored in a password manager.
 - UFW allows SSH, and 80/443 only from Cloudflare.
 - `fail2ban-client status sshd` shows the jail running. Your home IP is in `ignoreip`.

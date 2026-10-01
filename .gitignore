@@ -218,6 +218,7 @@ __marimo__/
 *cloudflare.ini
 *default.conf
 ssl/
+.cloudflare/
 
 # Issued certificates and ACME account state
 selfhost/networking/certbot/conf/
