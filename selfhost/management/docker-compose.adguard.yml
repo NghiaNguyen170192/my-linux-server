@@ -1,0 +1,24 @@
+# Optional. DNS ports stay off the public interface.
+# Start with: bash scripts/deploy.sh --with-adguard
+
+services:
+  adguardhome:
+    image: adguard/adguardhome:v0.107.57
+    container_name: adguardhome
+    hostname: adguardhome
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${ROOT_DATA_PATH}/adguardhome/work:/opt/adguardhome/work
+      - ${ROOT_DATA_PATH}/adguardhome/conf:/opt/adguardhome/conf
+    expose:
+      - "80"
+      - "3000"
+    networks:
+      - nginx-network
+
+networks:
+  nginx-network:
+    external: true
+    name: nginx-network

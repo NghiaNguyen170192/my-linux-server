@@ -1,59 +1,136 @@
+# Dashboards, Docker UI, and host metrics. Start with scripts/deploy.sh (loads ../.env).
+
 services:
-  homarr:
-    hostname: homarr
-    container_name: homarr
-    image: ghcr.io/ajnart/homarr:latest
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3.0
+    container_name: socket-proxy
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
+      CONTAINERS: "1"
+      EVENTS: "1"
+      IMAGES: "1"
+      INFO: "1"
+      NETWORKS: "1"
+      VOLUMES: "1"
+      SERVICES: "1"
+      TASKS: "1"
+      POST: "0"
     volumes:
-      - ${ROOT_DATA_PATH}/homarr/app/data/configs:/app/data/configs
-      - ${ROOT_DATA_PATH}/homarr/app/public/icons:/app/public/icons
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - nginx-network
+
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    container_name: homarr
+    hostname: homarr
+    restart: unless-stopped
+    environment:
+      SECRET_ENCRYPTION_KEY: ${HOMARR_SECRET_ENCRYPTION_KEY}
+      TZ: ${TZ}
+      DOCKER_HOSTNAMES: socket-proxy
+      DOCKER_PORTS: "2375"
+    volumes:
+      - homarr-data:/appdata
     expose:
       - "7575"
     networks:
       - nginx-network
 
-  grafana:
-    hostname: grafana
-    image: grafana/grafana-oss:latest
-    container_name: grafana
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    expose:
-      - "3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    hostname: uptime-kuma
     restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - uptime-kuma-data:/app/data
+    expose:
+      - "3001"
     networks:
       - nginx-network
 
   portainer:
+    image: portainer/portainer-ce:lts
     container_name: portainer
     hostname: portainer
-    image: portainer/portainer-ce:latest
     restart: unless-stopped
     environment:
-      - TZ=${TZ}
-    expose:
-      - "8000"
-      - "9443"
-    networks:
-      - nginx-network
+      TZ: ${TZ}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${ROOT_DATA_PATH}/portainer/data:/data
+      - portainer-data:/data
+    expose:
+      - "9000"
+    networks:
+      - nginx-network
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - metrics
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - --path.procfs=/host/proc
+      - --path.rootfs=/rootfs
+      - --path.sysfs=/host/sys
+      - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - metrics
+
+  grafana:
+    image: grafana/grafana-oss:11.5.2
+    container_name: grafana
+    hostname: grafana
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
+      GF_SERVER_DOMAIN: grafana.${DOMAIN}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    expose:
+      - "3000"
+    networks:
+      - nginx-network
+      - metrics
+    depends_on:
+      - prometheus
 
 volumes:
+  homarr-data:
+  uptime-kuma-data:
+  portainer-data:
+  prometheus-data:
   grafana-data:
 
 networks:
   nginx-network:
     external: true
+    name: nginx-network
+  metrics:
+    driver: bridge
