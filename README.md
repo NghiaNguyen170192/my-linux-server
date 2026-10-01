@@ -95,25 +95,11 @@ A merge to `main` then copies the repository to `/opt/my-linux-server` as `nqtn`
 
 ## 7. Accept web traffic only from Cloudflare
 
-After https://nqtn.dev loads through the orange-cloud records, replace the public 80/443 rules with Cloudflare's published ranges:
-
-```bash
-sudo bash scripts/ufw-cloudflare.sh --yes
-```
-
-SSH stays open. Refresh the nginx client-IP list when you update the firewall ranges:
-
-```bash
-bash scripts/update-cloudflare-ips.sh
-```
+The Deploy workflow does not change UFW or the nginx client-IP list. After https://nqtn.dev loads through the orange-cloud records, ports 80 and 443 should accept traffic only from Cloudflare's published ranges, and `networking/nginx/conf.d/00-cloudflare-realip.conf` should match that list. SSH stays open.
 
 ## 8. fail2ban
 
-`bootstrap-vps.sh` already jails SSH. Four failures in ten minutes bans the address for a day. Repeat offenders are banned for a week. Add your home IP to `ignoreip` in `security/fail2ban/jail.d/selfhost.conf` before you install it, then re-run the bootstrap script so the jail file is copied again:
-
-```bash
-sudo bash scripts/bootstrap-vps.sh
-```
+The Deploy workflow's bootstrap step jails SSH. Four failures in ten minutes bans the address for a day. Repeat offenders are banned for a week. Add your home IP to `ignoreip` in `security/fail2ban/jail.d/selfhost.conf` before that step runs, so the jail file is copied with your address in it.
 
 Check it:
 
@@ -140,13 +126,7 @@ nginx writes the real client address only after it trusts `CF-Connecting-IP` fro
 
 ## 9. SSH keys
 
-Section 2 already turns off root SSH and password login for `nqtn`. After that second session works, host packages are a later step:
-
-```bash
-sudo bash scripts/bootstrap-vps.sh --with-ssh-hardening
-```
-
-On Ubuntu, a later `PasswordAuthentication yes` in `/etc/ssh/sshd_config` overrides the drop-in. `setup-deploy-user.sh` comments those lines out. If password login still works, comment them out by hand and reload SSH again.
+Section 2 already turns off root SSH and password login for `nqtn`. On Ubuntu, a later `PasswordAuthentication yes` in `/etc/ssh/sshd_config` overrides a drop-in. `setup-deploy-user.sh` comments those lines out. If password login still works, comment them out by hand and reload SSH again.
 
 ## 10. First login
 
@@ -173,9 +153,7 @@ In **Zero Trust → Access → Applications**, add a self-hosted application for
 
 AdGuard Home, web UI only. DNS ports stay closed so the VPS is not an open resolver.
 
-```bash
-bash scripts/deploy.sh --with-adguard
-```
+Set the `DEPLOY_ARGS` repository variable to `--with-adguard`, then run Deploy with **containers** enabled.
 
 The first start serves the setup wizard on port 3000. If https://adguard.nqtn.dev does not load, edit `networking/nginx/conf.d/55-adguard.conf`, change the upstream to `adguardhome:3000`, then:
 
@@ -187,29 +165,19 @@ Finish the wizard, point the upstream back at `adguardhome:80`, and reload nginx
 
 Komga was on `komga.nqtn.dev` in the previous proxy config. The container is optional:
 
-```bash
-bash scripts/deploy.sh --with-komga
-```
+Add `--with-komga` to `DEPLOY_ARGS`, then run Deploy with **containers** enabled.
 
 Libraries go in `/var/lib/selfhost/komga/data`. Change the volume in `media/docker-compose.yml` if the files already live somewhere else. Create the Komga admin user at https://komga.nqtn.dev and put that hostname behind Cloudflare Access.
 
 Flower:
 
-```bash
-bash scripts/deploy.sh --with-flower
-```
+Add `--with-flower` to `DEPLOY_ARGS`, then run Deploy with **containers** enabled.
 
 https://flower.nqtn.dev shows Celery workers. Put it behind Cloudflare Access with the other admin hostnames.
 
 ## 13. Operate
 
-A merge to `main` copies this repo to the server as `nqtn`. Containers start only when you run Deploy with **containers** enabled. From `/opt/my-linux-server/selfhost` on the server, the same commands are:
-
-Stop containers and keep volumes:
-
-```bash
-bash scripts/down.sh
-```
+A merge to `main` copies this repo to the server as `nqtn`. Containers start only when you run Deploy with **containers** enabled.
 
 Pull a stack and recreate it. Example for the management stack:
 

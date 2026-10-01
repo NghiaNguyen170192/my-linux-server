@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Called by GitHub Actions after it has written .env and cloudflare.ini.
+# Called by the Deploy workflow after it has written .env and cloudflare.ini.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

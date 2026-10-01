@@ -1,4 +1,4 @@
-# Dashboards, Docker UI, and host metrics. Start with scripts/deploy.sh (loads ../.env).
+# Dashboards, Docker UI, and host metrics. The Deploy workflow starts this when containers is enabled.
 
 services:
   socket-proxy:

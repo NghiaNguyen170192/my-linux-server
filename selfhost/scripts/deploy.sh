@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Create networks and start the stacks. Reads selfhost/.env.
-#   bash scripts/deploy.sh
-#   bash scripts/deploy.sh --with-adguard --with-flower --with-komga
-#   bash scripts/deploy.sh --without-data
+# Called by the Deploy workflow through ci-deploy.sh.
+# Arguments come from the DEPLOY_ARGS repository variable:
+#   --with-adguard --with-flower --with-komga
+#   --without-data
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

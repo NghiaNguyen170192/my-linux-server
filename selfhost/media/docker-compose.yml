@@ -1,4 +1,4 @@
-# Optional comic and book server. Start with: bash scripts/deploy.sh --with-komga
+# Optional comic and book server. Set DEPLOY_ARGS to --with-komga and enable containers on Deploy.
 # Put library folders under ${ROOT_DATA_PATH}/komga/data, or change the mount.
 
 services:
