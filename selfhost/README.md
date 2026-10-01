@@ -19,13 +19,12 @@ selfhost/
 │   ├── nginx/
 │   └── certbot/cloudflare.ini.example
 ├── scripts/
-│   ├── bootstrap-vps.sh
+│   ├── setup-deploy-user.sh   # one-time login, before the workflow can connect
+│   ├── bootstrap-vps.sh       # Deploy workflow, bootstrap enabled
+│   ├── ci-deploy.sh           # Deploy workflow, containers enabled
 │   ├── issue-cert.sh
 │   ├── deploy.sh
-│   ├── ufw-cloudflare.sh
-│   ├── update-cloudflare-ips.sh
-│   ├── renew-cert.sh
-│   └── down.sh
+│   └── renew-cert.sh          # daily cron installed by bootstrap
 └── security/                     # fail2ban, ssh, sysctl, docker, logrotate
 ```
 
@@ -36,13 +35,4 @@ Two Docker networks:
 
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 
-Day-to-day commands, from this directory:
-
-```bash
-bash scripts/issue-cert.sh
-bash scripts/deploy.sh
-bash scripts/renew-cert.sh
-bash scripts/down.sh
-```
-
-`bash scripts/deploy.sh --without-data` skips Airflow. `--with-adguard`, `--with-komga`, and `--with-flower` add those services.
+`scripts/setup-deploy-user.sh` runs once, as root, before GitHub can log in. After that, the Deploy workflow is what runs on the server. Enable **bootstrap** for Docker, the firewall, and fail2ban. Enable **containers** to issue the certificate and start the stacks. `DEPLOY_ARGS` can be `--without-data`, `--with-adguard`, `--with-komga`, or `--with-flower`.

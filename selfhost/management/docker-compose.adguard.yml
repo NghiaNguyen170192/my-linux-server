@@ -1,5 +1,5 @@
 # Optional. DNS ports stay off the public interface.
-# Start with: bash scripts/deploy.sh --with-adguard
+# Set DEPLOY_ARGS to --with-adguard and enable containers on Deploy.
 
 services:
   adguardhome:

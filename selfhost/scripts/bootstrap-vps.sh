@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 # Prepare an Ubuntu 24.04 or Debian 12 VPS: Docker, UFW, fail2ban, security updates.
-# Usage:
-#   sudo bash scripts/bootstrap-vps.sh
-#   sudo bash scripts/bootstrap-vps.sh --cloudflare-only
-#   sudo bash scripts/bootstrap-vps.sh --with-ssh-hardening
+# Called by the Deploy workflow when bootstrap is enabled.
+# Usage: sudo bash scripts/bootstrap-vps.sh [--with-ssh-hardening]
 set -euo pipefail
 
 if [[ "${EUID}" -ne 0 ]]; then
@@ -11,11 +9,9 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-CLOUDFLARE_ONLY=0
 WITH_SSH=0
 for arg in "$@"; do
   case "$arg" in
-    --cloudflare-only) CLOUDFLARE_ONLY=1 ;;
     --with-ssh-hardening) WITH_SSH=1 ;;
     *)
       echo "Unknown option: $arg"
@@ -89,23 +85,28 @@ install -d -o "${owner}" -g "${owner}" -m 0750 /var/lib/selfhost
 
 timedatectl set-ntp true || true
 
-if [[ "${CLOUDFLARE_ONLY}" -eq 1 ]]; then
-  bash "${SRC}/scripts/ufw-cloudflare.sh" --yes
-else
-  if [[ -f /etc/default/ufw ]]; then
-    sed -i 's/^IPV6=.*/IPV6=yes/' /etc/default/ufw
-  fi
-  ufw default deny incoming
-  ufw default allow outgoing
-  if ufw app info OpenSSH >/dev/null 2>&1; then
-    ufw allow OpenSSH
-  else
-    ufw allow 22/tcp comment 'ssh'
-  fi
-  ufw allow 80/tcp comment 'http'
-  ufw allow 443/tcp comment 'https'
-  ufw --force enable
+# Daily Let's Encrypt renewal. The script reloads nginx only after a successful renew.
+cron_file=/etc/cron.d/selfhost-certbot
+cat > "${cron_file}" <<EOF
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 3 * * * root ${SRC}/scripts/renew-cert.sh >> /var/log/cert-renew.log 2>&1
+EOF
+chmod 644 "${cron_file}"
+
+if [[ -f /etc/default/ufw ]]; then
+  sed -i 's/^IPV6=.*/IPV6=yes/' /etc/default/ufw
 fi
+ufw default deny incoming
+ufw default allow outgoing
+if ufw app info OpenSSH >/dev/null 2>&1; then
+  ufw allow OpenSSH
+else
+  ufw allow 22/tcp comment 'ssh'
+fi
+ufw allow 80/tcp comment 'http'
+ufw allow 443/tcp comment 'https'
+ufw --force enable
 
 if [[ "${WITH_SSH}" -eq 1 ]]; then
   install -m 0644 "${SRC}/security/ssh/99-hardening.conf" /etc/ssh/sshd_config.d/99-hardening.conf

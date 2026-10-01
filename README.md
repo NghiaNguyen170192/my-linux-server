@@ -2,7 +2,7 @@
 
 Docker services on a VPS, with nginx as the only process on ports 80 and 443. Cloudflare proxies the domain, Let's Encrypt proves ownership through the Cloudflare DNS API, and the host firewall, fail2ban, and SSH settings sit in front of the containers.
 
-The stacks live in [`selfhost/`](selfhost/README.md). Commands below assume you are in that directory on the server.
+The stacks live in [`selfhost/`](selfhost/README.md). The current step is the `nqtn` login. Networking, management, and the other containers, and their DNS names, come after that login works.
 
 ## Services
 
@@ -45,129 +45,61 @@ Use a VPS with 2 vCPU and 4 GB of RAM when Airflow is included. Ubuntu 24.04 or 
 In the Cloudflare dashboard for `nqtn.dev`:
 
 1. **DNS → Records**. Add an `A` record for `@` pointing at the VPS IPv4 address, proxy on (orange cloud). Add an `A` record for `*` with the same address, proxy on. Add an `AAAA` record for each if the VPS has IPv6. Proxied wildcards work on every Cloudflare plan.
-2. **SSL/TLS → Overview**. Set the mode to **Full (strict)** after the origin certificate exists (step 5). Before that, Cloudflare returns error 526, which is expected.
+2. **SSL/TLS → Overview**. Set the mode to **Full (strict)** after the first successful deploy. Before the origin certificate exists, Cloudflare returns error 526, which is expected.
 3. **SSL/TLS → Edge Certificates**. Turn on **Always Use HTTPS** and **Automatic HTTPS Rewrites**. Set **Minimum TLS Version** to 1.2.
 4. **Security → Settings**. Turn on **Bot Fight Mode**. Leave the free managed WAF ruleset enabled.
-5. **My Profile → API Tokens → Create Token**. Use the **Edit zone DNS** template and limit it to `nqtn.dev`. This token is only for certificate issuance.
+5. **My Profile → API Tokens → Create Token**. Use the **Edit zone DNS** template and limit it to `nqtn.dev`. Save it as the GitHub secret `CLOUDFLARE_API_TOKEN`. It is only for certificate issuance.
 6. Copy the **Zone ID** from the domain overview page. A second token, limited to the same zone with **Zone → Firewall Services → Edit**, is used later by fail2ban.
 
 Turn on two-factor authentication for the Cloudflare account.
 
-## 2. Put the repo on the server
+## 2. Create the nqtn user
+
+`nqtn` is the login that replaces root. It has sudo, no password of its own, and only the SSH key. Root cannot SSH in, and the root password is locked. The provider console can still open a root shell if the key login fails.
+
+This step does not start nginx, the management stack, or the security containers, and it does not create DNS names.
+
+### Key on your PC
+
+In PowerShell:
+
+```powershell
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\nqtn_deploy -N '""'
+Get-Content $env:USERPROFILE\.ssh\nqtn_deploy.pub
+```
+
+The `.pub` line is what the server stores. The file without `.pub` is the private key. Put that private key in the GitHub secret `SSH_PRIVATE_KEY` (Settings → Secrets and variables → Actions). Also set `SSH_HOST` to `199.241.138.175`. The workflow always logs in as `nqtn`.
+
+### On the VPS, still as root
+
+Open the provider console, or the current root SSH session, and leave it open. Clone the repo if it is not there yet. Until this change is on `main`, clone branch `ci/deploy-on-merge` instead. Then pass the public key line:
 
 ```bash
-sudo mkdir -p /opt/my-linux-server
-sudo chown "$USER:$USER" /opt/my-linux-server
-git clone <your-remote-url> /opt/my-linux-server
-cd /opt/my-linux-server/selfhost
+git clone https://github.com/NghiaNguyen170192/my-linux-server.git /opt/my-linux-server
+bash /opt/my-linux-server/selfhost/scripts/setup-deploy-user.sh 'ssh-ed25519 AAAA... github-actions'
 ```
 
-The scripts call `bash`, so they do not need the executable bit.
+The script creates `nqtn`, writes `~/.ssh/authorized_keys`, gives that user ownership of `/opt/my-linux-server` and passwordless sudo, locks the root password, and sets `PermitRootLogin no`.
 
-## 3. Prepare the host
+### Confirm before you close root
 
-This installs Docker Engine, the Compose plugin, UFW, fail2ban, and unattended security upgrades. It allows SSH plus public 80/443, and creates `/var/lib/selfhost` for your user.
+From your PC:
 
-```bash
-sudo bash scripts/bootstrap-vps.sh
+```powershell
+ssh -i $env:USERPROFILE\.ssh\nqtn_deploy nqtn@199.241.138.175
 ```
 
-Log out and back in so your user joins the `docker` group.
+`sudo -n whoami` should print `root`. After that succeeds, close the root session. Further SSH as root is refused.
 
-The script opens port 22. If SSH listens on another port, change the `ufw allow` line in `scripts/bootstrap-vps.sh` and `scripts/ufw-cloudflare.sh` before you run them.
-
-## 4. Fill in secrets
-
-```bash
-cp .env.example .env
-cp networking/certbot/cloudflare.ini.example networking/certbot/cloudflare.ini
-chmod 600 .env networking/certbot/cloudflare.ini
-```
-
-Edit `networking/certbot/cloudflare.ini` and set `dns_cloudflare_api_token` to the DNS token from step 1.
-
-Edit `.env`:
-
-- `CERTBOT_EMAIL` is a mailbox you read. Let's Encrypt uses it for expiry notices.
-- Passwords are 16 or more letters and digits. Symbols break the Redis and database URLs.
-- Generate the two keys on the server:
-
-```bash
-python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
-openssl rand -hex 32
-```
-
-Put the first value in `FERNET_KEY` and the second in `HOMARR_SECRET_ENCRYPTION_KEY`.
-
-`selfhost/data/config/airflow.cfg` used to contain a Fernet key. That file is gone. Generate a new key. If that old file was ever pushed or copied off the machine, treat the old key as public and leave it unused.
-
-## 5. Issue the certificate
-
-Certbot creates a TXT record through the Cloudflare API, then stores a certificate for `nqtn.dev` and `*.nqtn.dev` in `networking/certbot/conf/`.
-
-If this machine already has a certificate tree in `networking/nginx/ssl` (the old mount), move it instead of issuing again:
-
-```bash
-mv networking/nginx/ssl networking/certbot/conf
-```
-
-Otherwise:
-
-```bash
-bash scripts/issue-cert.sh
-```
-
-The certificate is trusted by browsers. Cloudflare checks it when the SSL mode is Full (strict).
-
-Renewal is a daily cron entry. Use the real path of the script:
-
-```bash
-sudo crontab -e
-```
-
-```
-0 3 * * * /opt/my-linux-server/selfhost/scripts/renew-cert.sh >> /var/log/cert-renew.log 2>&1
-```
-
-## 6. Start the containers
-
-```bash
-bash scripts/deploy.sh
-```
-
-That creates the `nginx-network` and `data-internal` networks, then starts nginx, the blog, Airflow, and the management stack.
-
-On a smaller VPS, skip Airflow, Postgres, Redis, MinIO, and pgAdmin:
-
-```bash
-bash scripts/deploy.sh --without-data
-```
-
-Set Cloudflare SSL/TLS to **Full (strict)** if you have not already. Then open https://nqtn.dev.
-
-The blog image is `s3343711/astro-blog`. If the pull is denied, run `docker login` with an account that can read that image and deploy again.
+A merge to `main` then copies the repository to `/opt/my-linux-server` as `nqtn`. It does not install Docker, issue a certificate, or start containers. Those stay behind the **containers** and **bootstrap** switches on a manual Deploy run, for a later step.
 
 ## 7. Accept web traffic only from Cloudflare
 
-After https://nqtn.dev loads through the orange-cloud records, replace the public 80/443 rules with Cloudflare's published ranges:
-
-```bash
-sudo bash scripts/ufw-cloudflare.sh --yes
-```
-
-SSH stays open. Refresh the nginx client-IP list when you update the firewall ranges:
-
-```bash
-bash scripts/update-cloudflare-ips.sh
-```
+The Deploy workflow does not change UFW or the nginx client-IP list. After https://nqtn.dev loads through the orange-cloud records, ports 80 and 443 should accept traffic only from Cloudflare's published ranges, and `networking/nginx/conf.d/00-cloudflare-realip.conf` should match that list. SSH stays open.
 
 ## 8. fail2ban
 
-`bootstrap-vps.sh` already jails SSH. Four failures in ten minutes bans the address for a day. Repeat offenders are banned for a week. Add your home IP to `ignoreip` in `security/fail2ban/jail.d/selfhost.conf` before you install it, then re-run the bootstrap script so the jail file is copied again:
-
-```bash
-sudo bash scripts/bootstrap-vps.sh
-```
+The Deploy workflow's bootstrap step jails SSH. Four failures in ten minutes bans the address for a day. Repeat offenders are banned for a week. Add your home IP to `ignoreip` in `security/fail2ban/jail.d/selfhost.conf` before that step runs, so the jail file is copied with your address in it.
 
 Check it:
 
@@ -194,13 +126,7 @@ nginx writes the real client address only after it trusts `CF-Connecting-IP` fro
 
 ## 9. SSH keys
 
-From a second terminal, confirm you can log in with your key. Then:
-
-```bash
-sudo bash scripts/bootstrap-vps.sh --with-ssh-hardening
-```
-
-Keep the first session open until the second one succeeds. The drop-in disables password login and allows root only with a key. On Ubuntu, a later `PasswordAuthentication yes` in `/etc/ssh/sshd_config` overrides the drop-in. Comment that line out if password login still works, then reload SSH again.
+Section 2 already turns off root SSH and password login for `nqtn`. On Ubuntu, a later `PasswordAuthentication yes` in `/etc/ssh/sshd_config` overrides a drop-in. `setup-deploy-user.sh` comments those lines out. If password login still works, comment them out by hand and reload SSH again.
 
 ## 10. First login
 
@@ -227,9 +153,7 @@ In **Zero Trust → Access → Applications**, add a self-hosted application for
 
 AdGuard Home, web UI only. DNS ports stay closed so the VPS is not an open resolver.
 
-```bash
-bash scripts/deploy.sh --with-adguard
-```
+Set the `DEPLOY_ARGS` repository variable to `--with-adguard`, then run Deploy with **containers** enabled.
 
 The first start serves the setup wizard on port 3000. If https://adguard.nqtn.dev does not load, edit `networking/nginx/conf.d/55-adguard.conf`, change the upstream to `adguardhome:3000`, then:
 
@@ -241,27 +165,19 @@ Finish the wizard, point the upstream back at `adguardhome:80`, and reload nginx
 
 Komga was on `komga.nqtn.dev` in the previous proxy config. The container is optional:
 
-```bash
-bash scripts/deploy.sh --with-komga
-```
+Add `--with-komga` to `DEPLOY_ARGS`, then run Deploy with **containers** enabled.
 
 Libraries go in `/var/lib/selfhost/komga/data`. Change the volume in `media/docker-compose.yml` if the files already live somewhere else. Create the Komga admin user at https://komga.nqtn.dev and put that hostname behind Cloudflare Access.
 
 Flower:
 
-```bash
-bash scripts/deploy.sh --with-flower
-```
+Add `--with-flower` to `DEPLOY_ARGS`, then run Deploy with **containers** enabled.
 
 https://flower.nqtn.dev shows Celery workers. Put it behind Cloudflare Access with the other admin hostnames.
 
 ## 13. Operate
 
-Stop containers and keep volumes:
-
-```bash
-bash scripts/down.sh
-```
+A merge to `main` copies this repo to the server as `nqtn`. Containers start only when you run Deploy with **containers** enabled.
 
 Pull a stack and recreate it. Example for the management stack:
 
@@ -293,11 +209,11 @@ Logs: `docker logs nginx`, `docker logs airflow-scheduler`, and files in `/var/l
 ## Checklist
 
 - Cloudflare proxy is on for `@` and `*`, SSL mode is Full (strict), minimum TLS is 1.2, Bot Fight Mode is on.
-- `.env` and `cloudflare.ini` are mode 600 and are not committed.
+- `nqtn` logs in with the key, `sudo -n whoami` prints `root`, and SSH as root is refused. `SSH_HOST` and `SSH_PRIVATE_KEY` are set in GitHub.
 - `FERNET_KEY` and `HOMARR_SECRET_ENCRYPTION_KEY` are new values stored in a password manager.
 - UFW allows SSH, and 80/443 only from Cloudflare.
 - `fail2ban-client status sshd` shows the jail running. Your home IP is in `ignoreip`.
-- A second SSH session works with a key after `--with-ssh-hardening`.
+- A second SSH session as `nqtn` works before the root session is closed.
 - Portainer, Grafana, pgAdmin, Homarr, and Uptime Kuma have their own admin users, and Cloudflare Access covers those hostnames.
 - The renewal cron is installed.
 - Postgres is not published on a host port. The Docker socket is mounted on Portainer only. Homarr and Uptime Kuma talk to the read-only socket proxy.

@@ -1,4 +1,4 @@
 # Copy to cloudflare.ini next to this file and run: chmod 600 cloudflare.ini
 # Token: Cloudflare → My Profile → API Tokens → Create Token → "Edit zone DNS".
 # Restrict the token to the nqtn.dev zone.
-dns_cloudflare_api_token = replace-with-cloudflare-dns-token
+dns_cloudflare_api_token =

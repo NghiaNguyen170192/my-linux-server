@@ -1,0 +1,205 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bootstrap:
+        description: Install Docker, the firewall, fail2ban, and the renewal cron
+        type: boolean
+        default: false
+      containers:
+        description: Issue the certificate and start containers
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DEPLOY_PATH: /opt/my-linux-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check SSH secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in SSH_HOST SSH_PRIVATE_KEY; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+          test "${missing}" -eq 0
+
+      - name: Check app secrets
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
+        env:
+          CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          PGADMIN_DEFAULT_EMAIL: ${{ secrets.PGADMIN_DEFAULT_EMAIL }}
+          PGADMIN_DEFAULT_PASSWORD: ${{ secrets.PGADMIN_DEFAULT_PASSWORD }}
+          FERNET_KEY: ${{ secrets.FERNET_KEY }}
+          AIRFLOW_WWW_USER_PASSWORD: ${{ secrets.AIRFLOW_WWW_USER_PASSWORD }}
+          HOMARR_SECRET_ENCRYPTION_KEY: ${{ secrets.HOMARR_SECRET_ENCRYPTION_KEY }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          KEYCLOAK_DB_PASSWORD: ${{ secrets.KEYCLOAK_DB_PASSWORD }}
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in CERTBOT_EMAIL CLOUDFLARE_API_TOKEN \
+            POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD PGADMIN_DEFAULT_EMAIL \
+            PGADMIN_DEFAULT_PASSWORD FERNET_KEY AIRFLOW_WWW_USER_PASSWORD \
+            HOMARR_SECRET_ENCRYPTION_KEY GRAFANA_ADMIN_PASSWORD KEYCLOAK_DB_PASSWORD \
+            KEYCLOAK_ADMIN_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+          test "${missing}" -eq 0
+
+      - name: Build secret files
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
+        env:
+          CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+          PGADMIN_DEFAULT_EMAIL: ${{ secrets.PGADMIN_DEFAULT_EMAIL }}
+          PGADMIN_DEFAULT_PASSWORD: ${{ secrets.PGADMIN_DEFAULT_PASSWORD }}
+          FERNET_KEY: ${{ secrets.FERNET_KEY }}
+          AIRFLOW_WWW_USER_PASSWORD: ${{ secrets.AIRFLOW_WWW_USER_PASSWORD }}
+          HOMARR_SECRET_ENCRYPTION_KEY: ${{ secrets.HOMARR_SECRET_ENCRYPTION_KEY }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+          KEYCLOAK_DB_PASSWORD: ${{ secrets.KEYCLOAK_DB_PASSWORD }}
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          out = Path(os.environ["RUNNER_TEMP"])
+          values = {
+              "DOMAIN": "nqtn.dev",
+              "TZ": "Asia/Ho_Chi_Minh",
+              "ROOT_DATA_PATH": "/var/lib/selfhost",
+              "CERTBOT_EMAIL": os.environ["CERTBOT_EMAIL"],
+              "CERTBOT_DOMAIN": "nqtn.dev",
+              "CERTBOT_WILDCARD_DOMAIN": "*.nqtn.dev",
+              "POSTGRES_USER": "airflow",
+              "POSTGRES_PASSWORD": os.environ["POSTGRES_PASSWORD"],
+              "POSTGRES_DB": "airflow",
+              "REDIS_PASSWORD": os.environ["REDIS_PASSWORD"],
+              "MINIO_ROOT_USER": "minio",
+              "MINIO_ROOT_PASSWORD": os.environ["MINIO_ROOT_PASSWORD"],
+              "PGADMIN_DEFAULT_EMAIL": os.environ["PGADMIN_DEFAULT_EMAIL"],
+              "PGADMIN_DEFAULT_PASSWORD": os.environ["PGADMIN_DEFAULT_PASSWORD"],
+              "AIRFLOW_IMAGE": "apache/airflow:3.0.6",
+              "AIRFLOW_UID": "50000",
+              "FERNET_KEY": os.environ["FERNET_KEY"],
+              "AIRFLOW_WWW_USER_USERNAME": "airflow",
+              "AIRFLOW_WWW_USER_PASSWORD": os.environ["AIRFLOW_WWW_USER_PASSWORD"],
+              "HOMARR_SECRET_ENCRYPTION_KEY": os.environ["HOMARR_SECRET_ENCRYPTION_KEY"],
+              "GRAFANA_ADMIN_USER": "admin",
+              "GRAFANA_ADMIN_PASSWORD": os.environ["GRAFANA_ADMIN_PASSWORD"],
+              "KEYCLOAK_ADMIN": "admin",
+              "KEYCLOAK_ADMIN_PASSWORD": os.environ["KEYCLOAK_ADMIN_PASSWORD"],
+              "KEYCLOAK_DB_USER": "keycloak",
+              "KEYCLOAK_DB_PASSWORD": os.environ["KEYCLOAK_DB_PASSWORD"],
+              "KEYCLOAK_DB_NAME": "keycloak",
+          }
+          lines = []
+          for key, value in values.items():
+              if any(char in value for char in "\n\r"):
+                  raise SystemExit(f"{key} must be a single line")
+              escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+              lines.append(f'{key}="{escaped}"')
+          (out / "selfhost.env").write_text("\n".join(lines) + "\n")
+          token = os.environ["CLOUDFLARE_API_TOKEN"].strip()
+          if not token or any(char in token for char in "\n\r "):
+              raise SystemExit("CLOUDFLARE_API_TOKEN must be a single token with no spaces")
+          (out / "cloudflare.ini").write_text(f"dns_cloudflare_api_token = {token}\n")
+          os.chmod(out / "selfhost.env", 0o600)
+          os.chmod(out / "cloudflare.ini", 0o600)
+          PY
+
+      - name: Open SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PORT: ${{ vars.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          port="${SSH_PORT:-22}"
+          ssh-keyscan -p "$port" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          cat > ~/.ssh/config <<EOF
+          Host vps
+            HostName ${SSH_HOST}
+            User nqtn
+            Port ${port}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            BatchMode yes
+          EOF
+          chmod 600 ~/.ssh/config
+
+      - name: Copy the repository
+        run: |
+          set -euo pipefail
+          ssh vps "mkdir -p '${DEPLOY_PATH}'"
+          tar -C "$GITHUB_WORKSPACE" -czf - \
+            --exclude=.git \
+            --exclude=selfhost/.env \
+            --exclude=selfhost/.cloudflare \
+            --exclude=selfhost/networking/certbot/cloudflare.ini \
+            --exclude=selfhost/networking/certbot/conf \
+            --exclude=selfhost/networking/nginx/ssl \
+            . | ssh vps "tar -xzf - -C '${DEPLOY_PATH}'"
+
+      - name: Install secret files
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
+        run: |
+          set -euo pipefail
+          scp "$RUNNER_TEMP/selfhost.env" "vps:${DEPLOY_PATH}/selfhost/.env"
+          scp "$RUNNER_TEMP/cloudflare.ini" "vps:${DEPLOY_PATH}/selfhost/networking/certbot/cloudflare.ini"
+          ssh vps "chmod 600 '${DEPLOY_PATH}/selfhost/.env' '${DEPLOY_PATH}/selfhost/networking/certbot/cloudflare.ini'"
+
+      - name: Bootstrap the host
+        if: github.event_name == 'workflow_dispatch' && inputs.bootstrap
+        run: |
+          set -euo pipefail
+          ssh vps "sudo -n /usr/bin/bash '${DEPLOY_PATH}/selfhost/scripts/bootstrap-vps.sh'"
+
+      - name: Issue the certificate and start containers
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
+        env:
+          DEPLOY_ARGS: ${{ vars.DEPLOY_ARGS }}
+        run: |
+          set -euo pipefail
+          set -f
+          quoted="$(printf '%q ' ${DEPLOY_ARGS})"
+          ssh vps "bash '${DEPLOY_PATH}/selfhost/scripts/ci-deploy.sh' ${quoted}"

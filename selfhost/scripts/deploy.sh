@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Create networks and start the stacks. Reads selfhost/.env.
-#   bash scripts/deploy.sh
-#   bash scripts/deploy.sh --with-adguard --with-flower --with-komga
-#   bash scripts/deploy.sh --without-data
+# Called by the Deploy workflow through ci-deploy.sh.
+# Arguments come from the DEPLOY_ARGS repository variable:
+#   --with-adguard --with-flower --with-komga
+#   --without-data
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -29,8 +30,8 @@ if [[ ! -f .env ]]; then
   echo "Copy .env.example to .env and edit it."
   exit 1
 fi
-if grep -q 'change-me' .env; then
-  echo ".env still contains change-me placeholders."
+if grep -Eq '^(POSTGRES_PASSWORD|REDIS_PASSWORD|MINIO_ROOT_PASSWORD|PGADMIN_DEFAULT_PASSWORD|FERNET_KEY|AIRFLOW_WWW_USER_PASSWORD|HOMARR_SECRET_ENCRYPTION_KEY|GRAFANA_ADMIN_PASSWORD|KEYCLOAK_DB_PASSWORD|KEYCLOAK_ADMIN_PASSWORD)=[[:space:]]*$' .env; then
+  echo ".env still has an empty password or key."
   exit 1
 fi
 chmod 600 .env

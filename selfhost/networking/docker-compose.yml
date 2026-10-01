@@ -1,4 +1,4 @@
-# Edge proxy and certificate issuance. Start with scripts/deploy.sh (loads ../.env).
+# Edge proxy and certificate issuance. The Deploy workflow starts this when containers is enabled.
 
 services:
   nginx:
