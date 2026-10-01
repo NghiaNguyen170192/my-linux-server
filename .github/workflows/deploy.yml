@@ -110,7 +110,7 @@ jobs:
               "POSTGRES_PASSWORD": os.environ["POSTGRES_PASSWORD"],
               "POSTGRES_DB": "airflow",
               "REDIS_PASSWORD": os.environ["REDIS_PASSWORD"],
-              "MINIO_ROOT_USER": "minioadmin",
+              "MINIO_ROOT_USER": "minio",
               "MINIO_ROOT_PASSWORD": os.environ["MINIO_ROOT_PASSWORD"],
               "PGADMIN_DEFAULT_EMAIL": os.environ["PGADMIN_DEFAULT_EMAIL"],
               "PGADMIN_DEFAULT_PASSWORD": os.environ["PGADMIN_DEFAULT_PASSWORD"],
