@@ -19,6 +19,7 @@ selfhost/
 │   ├── nginx/
 │   └── certbot/cloudflare.ini.example
 ├── scripts/
+│   ├── setup-deploy-user.sh
 │   ├── bootstrap-vps.sh
 │   ├── issue-cert.sh
 │   ├── ci-deploy.sh
@@ -37,7 +38,7 @@ Two Docker networks:
 
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 
-Merging to `main` runs these from this directory. The same commands work over SSH when you need them on the server:
+The login step is `scripts/setup-deploy-user.sh`. Container commands below run later, from this directory on the server:
 
 ```bash
 bash scripts/issue-cert.sh

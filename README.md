@@ -2,7 +2,7 @@
 
 Docker services on a VPS, with nginx as the only process on ports 80 and 443. Cloudflare proxies the domain, Let's Encrypt proves ownership through the Cloudflare DNS API, and the host firewall, fail2ban, and SSH settings sit in front of the containers.
 
-The stacks live in [`selfhost/`](selfhost/README.md). A merged pull request to `main` deploys them. GitHub Actions copies this repo to the VPS, writes the credentials from GitHub Secrets, and runs the scripts in `selfhost/scripts/`.
+The stacks live in [`selfhost/`](selfhost/README.md). The current step is the `nqtn` login. Networking, management, and the other containers, and their DNS names, come after that login works.
 
 ## Services
 
@@ -53,65 +53,45 @@ In the Cloudflare dashboard for `nqtn.dev`:
 
 Turn on two-factor authentication for the Cloudflare account.
 
-## 2. Deploy from GitHub
+## 2. Create the nqtn user
 
-Merging a pull request into `main` starts the [Deploy workflow](.github/workflows/deploy.yml). You can also run it by hand from the Actions tab. The workflow SSHes to the VPS, copies the repository to `/opt/my-linux-server`, writes `selfhost/.env` and `selfhost/networking/certbot/cloudflare.ini` from secrets, issues the certificate when it is missing, and starts the containers. Those files stay on the server. They are not committed.
+`nqtn` is the login that replaces root. It has sudo, no password of its own, and only the SSH key. Root cannot SSH in, and the root password is locked. The provider console can still open a root shell if the key login fails.
 
-Add these repository secrets before the first merge. Settings → Secrets and variables → Actions → Secrets:
+This step does not start nginx, the management stack, or the security containers, and it does not create DNS names.
 
-| Secret | Value |
-| --- | --- |
-| `SSH_HOST` | VPS address, `199.241.138.175` |
-| `SSH_USER` | Deploy user on the VPS |
-| `SSH_PRIVATE_KEY` | Private key that can log in as that user |
-| `CERTBOT_EMAIL` | Mailbox Let's Encrypt uses for expiry notices |
-| `CLOUDFLARE_API_TOKEN` | Zone DNS edit token from step 1 |
-| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login |
-| `POSTGRES_PASSWORD` | Postgres |
-| `REDIS_PASSWORD` | Redis |
-| `MINIO_ROOT_PASSWORD` | MinIO |
-| `PGADMIN_DEFAULT_PASSWORD` | pgAdmin |
-| `AIRFLOW_WWW_USER_PASSWORD` | Airflow |
-| `GRAFANA_ADMIN_PASSWORD` | Grafana |
-| `KEYCLOAK_DB_PASSWORD` | Keycloak database |
-| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin |
-| `FERNET_KEY` | Airflow Fernet key, see below |
-| `HOMARR_SECRET_ENCRYPTION_KEY` | Homarr key, see below |
+### Key on your PC
 
-Passwords are 16 or more letters and digits. Symbols break the Redis and database URLs. Generate the two keys locally and store them in a password manager:
+In PowerShell:
 
-```bash
-python3 -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
-openssl rand -hex 32
+```powershell
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\nqtn_deploy -N '""'
+Get-Content $env:USERPROFILE\.ssh\nqtn_deploy.pub
 ```
 
-The first value is `FERNET_KEY`. The second is `HOMARR_SECRET_ENCRYPTION_KEY` (64 hex characters). `selfhost/data/config/airflow.cfg` used to contain a Fernet key. That file is gone. Generate a new key. If that old file was ever pushed or copied off the machine, treat the old key as public and leave it unused.
+The `.pub` line is what the server stores. The file without `.pub` is the private key. Put that private key in the GitHub secret `SSH_PRIVATE_KEY` (Settings → Secrets and variables → Actions). Also set `SSH_HOST` to `199.241.138.175`. The workflow always logs in as `nqtn`.
 
-Optional repository variable `DEPLOY_ARGS` is passed to `scripts/deploy.sh`. Leave it empty for the full stack. `--without-data` skips Airflow and its databases. `--with-adguard`, `--with-komga`, and `--with-flower` add those services. Optional variable `SSH_PORT` defaults to 22.
+### On the VPS, still as root
 
-### One-time access on the VPS
-
-GitHub needs an SSH login. On the server, as root, create the deploy user and the directory the workflow writes to. Replace the key with the public half of `SSH_PRIVATE_KEY`:
+Open the provider console, or the current root SSH session, and leave it open. Clone the repo if it is not there yet. Until this change is on `main`, clone branch `ci/deploy-on-merge` instead. Then pass the public key line:
 
 ```bash
-adduser --disabled-password --gecos "" deploy
-install -d -o deploy -g deploy -m 700 /home/deploy/.ssh /opt/my-linux-server
-printf '%s\n' 'ssh-ed25519 AAAA... deploy@github' > /home/deploy/.ssh/authorized_keys
-chown deploy:deploy /home/deploy/.ssh/authorized_keys
-chmod 600 /home/deploy/.ssh/authorized_keys
-printf '%s\n' 'deploy ALL=(ALL) NOPASSWD: /usr/bin/bash /opt/my-linux-server/selfhost/scripts/bootstrap-vps.sh' > /etc/sudoers.d/selfhost-deploy
-chmod 440 /etc/sudoers.d/selfhost-deploy
+git clone https://github.com/NghiaNguyen170192/my-linux-server.git /opt/my-linux-server
+bash /opt/my-linux-server/selfhost/scripts/setup-deploy-user.sh 'ssh-ed25519 AAAA... github-actions'
 ```
 
-Use the same username in `SSH_USER`. If SSH is not on port 22, set `SSH_PORT` and change the `ufw allow` line in `scripts/bootstrap-vps.sh` and `scripts/ufw-cloudflare.sh` before the first deploy.
+The script creates `nqtn`, writes `~/.ssh/authorized_keys`, gives that user ownership of `/opt/my-linux-server` and passwordless sudo, locks the root password, and sets `PermitRootLogin no`.
 
-Then, in GitHub, Actions → Deploy → Run workflow, and enable **bootstrap**. That installs Docker, UFW, fail2ban, unattended upgrades, and the daily certificate renewal cron. After it finishes, run Deploy once more with bootstrap off. The second run is a new login, so the deploy user is in the `docker` group.
+### Confirm before you close root
 
-Later merges to `main` deploy on their own. Bootstrap stays off. The cron at `/etc/cron.d/selfhost-certbot` renews the certificate every day at 03:00 between deploys.
+From your PC:
 
-The certificate covers `nqtn.dev` and `*.nqtn.dev`. If this machine already has a certificate tree in `selfhost/networking/nginx/ssl`, move it to `selfhost/networking/certbot/conf` before the first deploy so Certbot does not issue a duplicate. Set Cloudflare SSL/TLS to **Full (strict)** after that deploy succeeds, then open https://nqtn.dev.
+```powershell
+ssh -i $env:USERPROFILE\.ssh\nqtn_deploy nqtn@199.241.138.175
+```
 
-The blog image is `s3343711/astro-blog`. If the pull is denied, log in on the server with an account that can read that image and run the workflow again.
+`sudo -n whoami` should print `root`. After that succeeds, close the root session. Further SSH as root is refused.
+
+A merge to `main` then copies the repository to `/opt/my-linux-server` as `nqtn`. It does not install Docker, issue a certificate, or start containers. Those stay behind the **containers** and **bootstrap** switches on a manual Deploy run, for a later step.
 
 ## 7. Accept web traffic only from Cloudflare
 
@@ -160,13 +140,13 @@ nginx writes the real client address only after it trusts `CF-Connecting-IP` fro
 
 ## 9. SSH keys
 
-From a second terminal, confirm you can log in with your key. Then:
+Section 2 already turns off root SSH and password login for `nqtn`. After that second session works, host packages are a later step:
 
 ```bash
 sudo bash scripts/bootstrap-vps.sh --with-ssh-hardening
 ```
 
-Keep the first session open until the second one succeeds. The drop-in disables password login and allows root only with a key. On Ubuntu, a later `PasswordAuthentication yes` in `/etc/ssh/sshd_config` overrides the drop-in. Comment that line out if password login still works, then reload SSH again.
+On Ubuntu, a later `PasswordAuthentication yes` in `/etc/ssh/sshd_config` overrides the drop-in. `setup-deploy-user.sh` comments those lines out. If password login still works, comment them out by hand and reload SSH again.
 
 ## 10. First login
 
@@ -223,7 +203,7 @@ https://flower.nqtn.dev shows Celery workers. Put it behind Cloudflare Access wi
 
 ## 13. Operate
 
-Day-to-day changes go out by merging a pull request to `main`. The workflow writes the current secrets and recreates the containers. On the server, from `/opt/my-linux-server/selfhost`, these are the same commands the workflow runs:
+A merge to `main` copies this repo to the server as `nqtn`. Containers start only when you run Deploy with **containers** enabled. From `/opt/my-linux-server/selfhost` on the server, the same commands are:
 
 Stop containers and keep volumes:
 
@@ -261,11 +241,11 @@ Logs: `docker logs nginx`, `docker logs airflow-scheduler`, and files in `/var/l
 ## Checklist
 
 - Cloudflare proxy is on for `@` and `*`, SSL mode is Full (strict), minimum TLS is 1.2, Bot Fight Mode is on.
-- The GitHub secrets in section 2 are set. `.env` and `cloudflare.ini` exist only on the server, mode 600, and are not committed.
+- `nqtn` logs in with the key, `sudo -n whoami` prints `root`, and SSH as root is refused. `SSH_HOST` and `SSH_PRIVATE_KEY` are set in GitHub.
 - `FERNET_KEY` and `HOMARR_SECRET_ENCRYPTION_KEY` are new values stored in a password manager.
 - UFW allows SSH, and 80/443 only from Cloudflare.
 - `fail2ban-client status sshd` shows the jail running. Your home IP is in `ignoreip`.
-- A second SSH session works with a key after `--with-ssh-hardening`.
+- A second SSH session as `nqtn` works before the root session is closed.
 - Portainer, Grafana, pgAdmin, Homarr, and Uptime Kuma have their own admin users, and Cloudflare Access covers those hostnames.
 - The renewal cron is installed.
 - Postgres is not published on a host port. The Docker socket is mounted on Portainer only. Homarr and Uptime Kuma talk to the read-only socket proxy.

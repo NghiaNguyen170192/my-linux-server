@@ -9,6 +9,10 @@ on:
         description: Install Docker, the firewall, fail2ban, and the renewal cron
         type: boolean
         default: false
+      containers:
+        description: Issue the certificate and start containers
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-main
@@ -26,11 +30,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check required secrets
+      - name: Check SSH secrets
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in SSH_HOST SSH_PRIVATE_KEY; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+          test "${missing}" -eq 0
+
+      - name: Check app secrets
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
+        env:
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
@@ -47,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           missing=0
-          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY CERTBOT_EMAIL CLOUDFLARE_API_TOKEN \
+          for name in CERTBOT_EMAIL CLOUDFLARE_API_TOKEN \
             POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD PGADMIN_DEFAULT_EMAIL \
             PGADMIN_DEFAULT_PASSWORD FERNET_KEY AIRFLOW_WWW_USER_PASSWORD \
             HOMARR_SECRET_ENCRYPTION_KEY GRAFANA_ADMIN_PASSWORD KEYCLOAK_DB_PASSWORD \
@@ -60,6 +77,7 @@ jobs:
           test "${missing}" -eq 0
 
       - name: Build secret files
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
         env:
           CERTBOT_EMAIL: ${{ secrets.CERTBOT_EMAIL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -128,7 +146,6 @@ jobs:
       - name: Open SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_PORT: ${{ vars.SSH_PORT }}
         run: |
@@ -142,7 +159,7 @@ jobs:
           cat > ~/.ssh/config <<EOF
           Host vps
             HostName ${SSH_HOST}
-            User ${SSH_USER}
+            User nqtn
             Port ${port}
             IdentityFile ~/.ssh/deploy_key
             IdentitiesOnly yes
@@ -164,6 +181,7 @@ jobs:
             . | ssh vps "tar -xzf - -C '${DEPLOY_PATH}'"
 
       - name: Install secret files
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
         run: |
           set -euo pipefail
           scp "$RUNNER_TEMP/selfhost.env" "vps:${DEPLOY_PATH}/selfhost/.env"
@@ -177,6 +195,7 @@ jobs:
           ssh vps "sudo -n /usr/bin/bash '${DEPLOY_PATH}/selfhost/scripts/bootstrap-vps.sh'"
 
       - name: Issue the certificate and start containers
+        if: github.event_name == 'workflow_dispatch' && inputs.containers
         env:
           DEPLOY_ARGS: ${{ vars.DEPLOY_ARGS }}
         run: |
