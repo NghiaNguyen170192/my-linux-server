@@ -1,0 +1,23 @@
+# Optional comic and book server. Set DEPLOY_ARGS to --with-komga and enable containers on Deploy.
+# Put library folders under ${ROOT_DATA_PATH}/komga/data, or change the mount.
+
+services:
+  komga:
+    image: gotson/komga:latest
+    container_name: komga
+    hostname: komga
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${ROOT_DATA_PATH}/komga/config:/config
+      - ${ROOT_DATA_PATH}/komga/data:/data
+    expose:
+      - "25600"
+    networks:
+      - nginx-network
+
+networks:
+  nginx-network:
+    external: true
+    name: nginx-network
