@@ -64,15 +64,15 @@ This step does not start nginx, the management stack, or the security containers
 In PowerShell:
 
 ```powershell
-ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\nqtn_deploy -N '""'
+ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\nqtn_deploy -N ([string]::Empty)
 Get-Content $env:USERPROFILE\.ssh\nqtn_deploy.pub
 ```
 
-The `.pub` line is what the server stores. The file without `.pub` is the private key. Put that private key in the GitHub secret `SSH_PRIVATE_KEY` (Settings → Secrets and variables → Actions). Also set `SSH_HOST` to `199.241.138.175`. The workflow always logs in as `nqtn`.
+The `.pub` line is what the server stores. The file without `.pub` is the private key. It must have no passphrase. Put that whole file, from `BEGIN` through `END`, in the GitHub secret `SSH_PRIVATE_KEY` (Settings → Secrets and variables → Actions). Also set `SSH_HOST` to `199.241.138.175`. The workflow always logs in as `nqtn`.
 
 ### On the VPS, still as root
 
-Open the provider console, or the current root SSH session, and leave it open. Clone the repo if it is not there yet. Until this change is on `main`, clone branch `ci/deploy-on-merge` instead. Then pass the public key line:
+Open the provider console, or the current root SSH session, and leave it open. Clone the repo if it is not there yet, then pass the public key line:
 
 ```bash
 git clone https://github.com/NghiaNguyen170192/my-linux-server.git /opt/my-linux-server

@@ -152,8 +152,29 @@ jobs:
           set -euo pipefail
           umask 077
           mkdir -p ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          text = os.environ["SSH_PRIVATE_KEY"].replace("\r\n", "\n").replace("\r", "\n")
+          if "\\n" in text and text.count("\n") < 3:
+              text = text.replace("\\n", "\n")
+          text = text.strip() + "\n"
+          path = Path.home() / ".ssh" / "deploy_key"
+          path.write_text(text)
+          path.chmod(0o600)
+          if "PRIVATE KEY" not in text:
+              raise SystemExit(
+                  "SSH_PRIVATE_KEY is not a private key. Paste the nqtn_deploy file, "
+                  "including the BEGIN and END lines. Do not paste the .pub file."
+              )
+          PY
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null; then
+            echo "GitHub could not read SSH_PRIVATE_KEY."
+            echo "The key must have an empty passphrase. On your PC run:"
+            echo '  ssh-keygen -t ed25519 -f $env:USERPROFILE\.ssh\nqtn_deploy -N ([string]::Empty)'
+            echo "Replace the GitHub secret with that private file, and add the new .pub line on the server."
+            exit 1
+          fi
           port="${SSH_PORT:-22}"
           ssh-keyscan -p "$port" -H "$SSH_HOST" >> ~/.ssh/known_hosts
           cat > ~/.ssh/config <<EOF
