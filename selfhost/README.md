@@ -35,4 +35,4 @@ Two Docker networks:
 
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 
-`scripts/setup-deploy-user.sh` runs once, as root, before GitHub can log in. After that, the Deploy workflow is what runs on the server. Enable **bootstrap** for Docker, the firewall, and fail2ban. Enable **containers** to issue the certificate and start the stacks. `DEPLOY_ARGS` can be `--without-data`, `--with-adguard`, `--with-komga`, or `--with-flower`.
+`scripts/setup-deploy-user.sh` runs once, as root, before GitHub can log in. After that, the Deploy workflow is what runs on the server. Enable **bootstrap** for Docker, the firewall, and fail2ban. Enable **containers** to issue the certificate and start the stacks. Airflow, Postgres, Redis, MinIO, and pgAdmin stay off until `DEPLOY_ARGS` includes `--with-data`. `--with-adguard`, `--with-komga`, and `--with-flower` add those services.
