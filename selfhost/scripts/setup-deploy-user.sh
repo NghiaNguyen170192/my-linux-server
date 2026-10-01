@@ -56,6 +56,7 @@ chown "${DEPLOY_USER}:${DEPLOY_USER}" "${auth_keys}"
 chmod 600 "${auth_keys}"
 
 install -d -o "${DEPLOY_USER}" -g "${DEPLOY_USER}" -m 755 "${DEPLOY_PATH}"
+chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_PATH}"
 
 sudoers_file=/etc/sudoers.d/nqtn
 printf '%s\n' "${DEPLOY_USER} ALL=(ALL) NOPASSWD:ALL" > "${sudoers_file}"

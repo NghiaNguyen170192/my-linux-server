@@ -191,7 +191,7 @@ jobs:
       - name: Copy the repository
         run: |
           set -euo pipefail
-          ssh vps "mkdir -p '${DEPLOY_PATH}'"
+          ssh vps "sudo -n mkdir -p '${DEPLOY_PATH}' && sudo -n chown -R nqtn:nqtn '${DEPLOY_PATH}'"
           tar -C "$GITHUB_WORKSPACE" -czf - \
             --exclude=.git \
             --exclude=selfhost/.env \
@@ -199,7 +199,7 @@ jobs:
             --exclude=selfhost/networking/certbot/cloudflare.ini \
             --exclude=selfhost/networking/certbot/conf \
             --exclude=selfhost/networking/nginx/ssl \
-            . | ssh vps "tar -xzf - -C '${DEPLOY_PATH}'"
+            . | ssh vps "tar -xzf - --overwrite --no-same-owner -C '${DEPLOY_PATH}'"
 
       - name: Install secret files
         if: github.event_name == 'workflow_dispatch' && inputs.containers
