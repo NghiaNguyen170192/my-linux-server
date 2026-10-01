@@ -3,6 +3,7 @@
 # Called by the Deploy workflow through ci-deploy.sh.
 # Arguments come from the DEPLOY_ARGS repository variable:
 #   --with-adguard --with-flower --with-komga
+#   --with-data
 #   --without-data
 set -euo pipefail
 
@@ -12,13 +13,14 @@ cd "${ROOT}"
 WITH_ADGUARD=0
 WITH_FLOWER=0
 WITH_KOMGA=0
-WITH_DATA=1
+WITH_DATA=0
 for arg in "$@"; do
   [[ -z "${arg}" ]] && continue
   case "$arg" in
     --with-adguard) WITH_ADGUARD=1 ;;
     --with-flower) WITH_FLOWER=1 ;;
     --with-komga) WITH_KOMGA=1 ;;
+    --with-data) WITH_DATA=1 ;;
     --without-data) WITH_DATA=0 ;;
     *)
       echo "Unknown option: $arg"
