@@ -242,6 +242,9 @@ jobs:
           DEPLOY_ARGS: ${{ vars.DEPLOY_ARGS }}
         run: |
           set -euo pipefail
-          set -f
-          quoted="$(printf '%q ' ${DEPLOY_ARGS})"
+          quoted=""
+          if [[ -n "${DEPLOY_ARGS}" ]]; then
+            set -f
+            quoted="$(printf '%q ' ${DEPLOY_ARGS})"
+          fi
           ssh vps "bash '${DEPLOY_PATH}/selfhost/scripts/ci-deploy.sh' ${quoted}"

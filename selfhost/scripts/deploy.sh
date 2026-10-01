@@ -14,6 +14,7 @@ WITH_FLOWER=0
 WITH_KOMGA=0
 WITH_DATA=1
 for arg in "$@"; do
+  [[ -z "${arg}" ]] && continue
   case "$arg" in
     --with-adguard) WITH_ADGUARD=1 ;;
     --with-flower) WITH_FLOWER=1 ;;
