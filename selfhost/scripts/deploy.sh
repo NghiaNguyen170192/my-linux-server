@@ -59,6 +59,8 @@ require_secret MINIO_ROOT_PASSWORD "${MINIO_ROOT_PASSWORD}"
 require_secret PGADMIN_DEFAULT_PASSWORD "${PGADMIN_DEFAULT_PASSWORD}"
 require_secret AIRFLOW_WWW_USER_PASSWORD "${AIRFLOW_WWW_USER_PASSWORD}"
 require_secret GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD}"
+require_secret KEYCLOAK_DB_PASSWORD "${KEYCLOAK_DB_PASSWORD}"
+require_secret KEYCLOAK_ADMIN_PASSWORD "${KEYCLOAK_ADMIN_PASSWORD}"
 
 if [[ ! "${FERNET_KEY}" =~ ^[A-Za-z0-9_-]{43}=$ ]]; then
   echo "FERNET_KEY must be a Fernet key. Generate one with:"
@@ -105,8 +107,10 @@ if [[ "${WITH_DATA}" -eq 1 ]]; then
   if [[ "${WITH_FLOWER}" -eq 1 ]]; then
     compose -f data/docker-compose.yml --profile flower up -d flower
   fi
+  compose -f management/docker-compose.yml --profile keycloak up -d
+else
+  compose -f management/docker-compose.yml up -d
 fi
-compose -f management/docker-compose.yml up -d
 if [[ "${WITH_ADGUARD}" -eq 1 ]]; then
   compose -f management/docker-compose.adguard.yml up -d
 fi

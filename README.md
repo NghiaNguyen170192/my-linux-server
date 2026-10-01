@@ -30,6 +30,8 @@ flowchart LR
 | https://homarr.nqtn.dev | Homarr start page |
 | https://status.nqtn.dev | Uptime Kuma health checks |
 | https://grafana.nqtn.dev | Grafana, fed by Prometheus |
+| https://keycloak.nqtn.dev | Keycloak, started with the data stack |
+| https://redisinsight.nqtn.dev | RedisInsight |
 | https://komga.nqtn.dev | Komga books and comics, optional |
 | https://adguard.nqtn.dev | AdGuard Home, optional |
 | https://flower.nqtn.dev | Celery Flower, optional |
@@ -211,13 +213,15 @@ Keep the first session open until the second one succeeds. The drop-in disables 
 | pgAdmin | Email and password are `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD`. Register a server with host `postgres`, port `5432`, and the Postgres user, password, and database from `.env`. |
 | MinIO | Console user is `MINIO_ROOT_USER`. API endpoint for clients is `https://s3.nqtn.dev`. Cloudflare's free plan limits a proxied request body to 100 MB. |
 | Airflow | User and password are `AIRFLOW_WWW_USER_USERNAME` and `AIRFLOW_WWW_USER_PASSWORD`. Put DAG files in `data/dags`. Example DAGs are off. |
+| Keycloak | https://keycloak.nqtn.dev when the data stack is running. Admin user and password are `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD`. The database role is created in Postgres on first start. |
+| RedisInsight | https://redisinsight.nqtn.dev. Add a database with host `redis`, port `6379`, and `REDIS_PASSWORD`. |
 | AdGuard | Only present after `--with-adguard`. See below. |
 
 ## 11. Cloudflare Access for the admin hostnames
 
 Application passwords stay in place. Access adds a login wall in front of them.
 
-In **Zero Trust → Access → Applications**, add a self-hosted application for each admin hostname (`airflow`, `minio`, `pgadmin`, `portainer`, `homarr`, `grafana`, `status`, and `adguard` / `komga` / `flower` if you use them). Policy: allow your email. Leave `nqtn.dev` and `s3.nqtn.dev` without Access so the site and S3 clients keep working. S3 clients authenticate with MinIO keys.
+In **Zero Trust → Access → Applications**, add a self-hosted application for each admin hostname (`airflow`, `minio`, `pgadmin`, `portainer`, `homarr`, `grafana`, `status`, `keycloak`, `redisinsight`, and `adguard` / `komga` / `flower` if you use them). Policy: allow your email. Leave `nqtn.dev` and `s3.nqtn.dev` without Access so the site and S3 clients keep working. S3 clients authenticate with MinIO keys.
 
 ## 12. Optional pieces
 

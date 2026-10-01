@@ -10,7 +10,7 @@ selfhost/
 │   ├── dags/
 │   ├── plugins/
 │   └── config/
-├── management/                   # Portainer, Homarr, Uptime Kuma, Grafana, Prometheus
+├── management/                   # Portainer, Homarr, Uptime Kuma, Grafana, Keycloak, RedisInsight
 │   ├── docker-compose.adguard.yml
 │   ├── grafana/provisioning/
 │   └── prometheus/prometheus.yml
@@ -32,7 +32,7 @@ selfhost/
 Two Docker networks:
 
 - `nginx-network` is the only network nginx can route to.
-- `data-internal` holds Postgres and Redis. Airflow, MinIO, and pgAdmin join it. It is not reachable from the proxy.
+- `data-internal` holds Postgres and Redis. nginx is not on that network. Keycloak and RedisInsight join it so they can reach those databases, and they also join `nginx-network` so the proxy can reach them.
 
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 

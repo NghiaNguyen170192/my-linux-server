@@ -16,7 +16,7 @@ compose() {
 
 compose -f management/docker-compose.adguard.yml down
 compose -f media/docker-compose.yml down
-compose -f management/docker-compose.yml down
+compose -f management/docker-compose.yml --profile keycloak down
 compose -f data/docker-compose.yml --profile flower down
 compose -f blog/docker-compose.yml down
 compose -f networking/docker-compose.yml down

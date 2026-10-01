@@ -235,3 +235,44 @@ selfhost/networking/certbot/conf/
 !**/.env.template
 !**/.env.sample
 
+# Secrets and credentials
+secrets/
+**/secrets/**
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+*.ovpn
+service-account*.json
+*.age
+*.sops.yaml
+
+# Logs and runtime data
+*.log
+*.rdb
+*.aof
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/.terraform.lock.hcl
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*_override.tf
+terraform/*_override.tf.json
+terraform/.terraformrc
+terraform/terraform.rc
+
