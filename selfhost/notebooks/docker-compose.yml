@@ -1,0 +1,38 @@
+# JupyterLab with conda and the Python 3 kernel.
+# The site is https://notebooks.${DOMAIN}. Nothing is published on the host.
+
+services:
+  jupyter:
+    image: quay.io/jupyter/base-notebook:2026-07-13
+    container_name: jupyter
+    hostname: jupyter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+      RESTARTABLE: "yes"
+    command:
+      - start-notebook.py
+      - --ServerApp.trust_xheaders=True
+      - --ServerApp.allow_remote_access=True
+      - --ServerApp.root_dir=/home/jovyan/work
+    volumes:
+      - jupyter-work:/home/jovyan/work
+      - jupyter-local:/home/jovyan/.local
+      - jupyter-conda-envs:/opt/conda/envs
+    expose:
+      - "8888"
+    networks:
+      - nginx-network
+
+networks:
+  nginx-network:
+    external: true
+    name: nginx-network
+
+volumes:
+  jupyter-work:
+  jupyter-local:
+  jupyter-conda-envs:

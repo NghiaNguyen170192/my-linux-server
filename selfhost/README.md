@@ -7,6 +7,8 @@ selfhost/
 ├── .env.example
 ├── blog/                         # Astro site, not started
 ├── ghost/                        # Ghost and MySQL, served at YOUR_DOMAIN
+├── notebooks/                    # JupyterLab, conda, Python kernel
+├── n8n/                          # n8n playground
 ├── data/                         # Airflow, Postgres, Redis, MinIO, pgAdmin
 │   ├── dags/
 │   ├── plugins/

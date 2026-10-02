@@ -1,0 +1,39 @@
+# n8n playground. SQLite stays in the volume. The site is https://n8n.${DOMAIN}.
+
+services:
+  n8n:
+    image: n8nio/n8n:2.40.0
+    container_name: n8n
+    hostname: n8n
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      N8N_HOST: n8n.${DOMAIN}
+      N8N_PORT: "5678"
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://n8n.${DOMAIN}/
+      WEBHOOK_URL: https://n8n.${DOMAIN}/
+      N8N_WEBHOOK_URL: https://n8n.${DOMAIN}/
+      N8N_PROXY_HOPS: "1"
+      N8N_SECURE_COOKIE: "true"
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      GENERIC_TIMEZONE: ${TZ}
+      TZ: ${TZ}
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: "168"
+    volumes:
+      - n8n-data:/home/node/.n8n
+    expose:
+      - "5678"
+    networks:
+      - nginx-network
+
+networks:
+  nginx-network:
+    external: true
+    name: nginx-network
+
+volumes:
+  n8n-data:
