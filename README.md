@@ -146,7 +146,7 @@ Section 2 already turns off root SSH and password login. On Ubuntu, a later `Pas
 | Airflow | User and password are `AIRFLOW_WWW_USER_USERNAME` and `AIRFLOW_WWW_USER_PASSWORD`. Put DAG files in `data/dags`. Example DAGs are off. |
 | Ghost | Open https://YOUR_DOMAIN/ghost and create the owner account. The public site is https://YOUR_DOMAIN. MySQL is not reachable from the internet. |
 | Jupyter | Open https://notebooks.YOUR_DOMAIN and sign in with `JUPYTER_TOKEN`. Conda and the Python 3 kernel are already installed. Notebooks and extra conda environments stay in Docker volumes. |
-| n8n | Open https://n8n.YOUR_DOMAIN and create the owner account. Workflows stay in the container volume. SQLite is not published. |
+| n8n | Open https://n8n.YOUR_DOMAIN and create the owner account. Workflows stay in the container volume. JavaScript and Python Code nodes run in the separate runners container. SQLite is not published. |
 | Keycloak | https://keycloak.YOUR_DOMAIN when the data stack is running. Admin user and password are `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD`. The database role is created in Postgres on first start. |
 | RedisInsight | https://redisinsight.YOUR_DOMAIN. Add a database with host `redis`, port `6379`, and `REDIS_PASSWORD`. |
 | AdGuard | Only present after `--with-adguard`. See below. |

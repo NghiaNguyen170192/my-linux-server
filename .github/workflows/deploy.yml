@@ -67,6 +67,7 @@ jobs:
           GHOST_DB_ROOT_PASSWORD: ${{ secrets.GHOST_DB_ROOT_PASSWORD }}
           JUPYTER_TOKEN: ${{ secrets.JUPYTER_TOKEN }}
           N8N_ENCRYPTION_KEY: ${{ secrets.N8N_ENCRYPTION_KEY }}
+          N8N_RUNNERS_AUTH_TOKEN: ${{ secrets.N8N_RUNNERS_AUTH_TOKEN }}
         run: |
           set -euo pipefail
           missing=0
@@ -75,7 +76,7 @@ jobs:
             PGADMIN_DEFAULT_PASSWORD FERNET_KEY AIRFLOW_WWW_USER_PASSWORD \
             HOMARR_SECRET_ENCRYPTION_KEY GRAFANA_ADMIN_PASSWORD KEYCLOAK_DB_PASSWORD \
             KEYCLOAK_ADMIN_PASSWORD GHOST_DB_PASSWORD GHOST_DB_ROOT_PASSWORD \
-            JUPYTER_TOKEN N8N_ENCRYPTION_KEY; do
+            JUPYTER_TOKEN N8N_ENCRYPTION_KEY N8N_RUNNERS_AUTH_TOKEN; do
             if [[ -z "${!name}" ]]; then
               echo "Missing GitHub secret: ${name}"
               missing=1
@@ -104,6 +105,7 @@ jobs:
           GHOST_DB_ROOT_PASSWORD: ${{ secrets.GHOST_DB_ROOT_PASSWORD }}
           JUPYTER_TOKEN: ${{ secrets.JUPYTER_TOKEN }}
           N8N_ENCRYPTION_KEY: ${{ secrets.N8N_ENCRYPTION_KEY }}
+          N8N_RUNNERS_AUTH_TOKEN: ${{ secrets.N8N_RUNNERS_AUTH_TOKEN }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -144,6 +146,7 @@ jobs:
               "GHOST_DB_ROOT_PASSWORD": os.environ["GHOST_DB_ROOT_PASSWORD"],
               "JUPYTER_TOKEN": os.environ["JUPYTER_TOKEN"],
               "N8N_ENCRYPTION_KEY": os.environ["N8N_ENCRYPTION_KEY"],
+              "N8N_RUNNERS_AUTH_TOKEN": os.environ["N8N_RUNNERS_AUTH_TOKEN"],
           }
           lines = []
           for key, value in values.items():

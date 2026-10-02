@@ -1,4 +1,5 @@
 # n8n playground. SQLite stays in the volume. The site is https://n8n.${DOMAIN}.
+# Code nodes run in the runners container, which has Python. The broker port is not published.
 
 services:
   n8n:
@@ -13,12 +14,19 @@ services:
       N8N_PORT: "5678"
       N8N_PROTOCOL: https
       N8N_EDITOR_BASE_URL: https://n8n.${DOMAIN}/
-      WEBHOOK_URL: https://n8n.${DOMAIN}/
       N8N_WEBHOOK_URL: https://n8n.${DOMAIN}/
       N8N_PROXY_HOPS: "1"
       N8N_SECURE_COOKIE: "true"
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_UNVERIFIED_PACKAGES_ENABLED: "true"
+      N8N_RUNNERS_MODE: external
+      N8N_RUNNERS_BROKER_LISTEN_ADDRESS: 0.0.0.0
+      N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN}
+      N8N_NATIVE_PYTHON_RUNNER: "true"
+      N8N_RUNNERS_TASK_TIMEOUT: "300"
+      N8N_COMPRESSION_NODE_MAX_DECOMPRESSED_SIZE_BYTES: "2147483648"
+      N8N_COMPRESSION_NODE_MAX_ZIP_ENTRIES: "5000"
       GENERIC_TIMEZONE: ${TZ}
       TZ: ${TZ}
       EXECUTIONS_DATA_PRUNE: "true"
@@ -29,11 +37,34 @@ services:
       - "5678"
     networks:
       - nginx-network
+      - n8n-internal
+
+  n8n-runners:
+    image: n8nio/runners:2.40.0
+    container_name: n8n-runners
+    hostname: n8n-runners
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      - n8n
+    environment:
+      N8N_RUNNERS_TASK_BROKER_URI: http://n8n:5679
+      N8N_RUNNERS_AUTH_TOKEN: ${N8N_RUNNERS_AUTH_TOKEN}
+      N8N_RUNNERS_TASK_TIMEOUT: "300"
+      N8N_RUNNERS_AUTO_SHUTDOWN_TIMEOUT: "0"
+      GENERIC_TIMEZONE: ${TZ}
+    volumes:
+      - ./n8n-task-runners.json:/etc/n8n-task-runners.json:ro
+    networks:
+      - n8n-internal
 
 networks:
   nginx-network:
     external: true
     name: nginx-network
+  n8n-internal:
+    name: n8n-internal
 
 volumes:
   n8n-data:
