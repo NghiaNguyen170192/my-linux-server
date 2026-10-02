@@ -47,6 +47,12 @@ services:
       - ghost-content:/var/lib/ghost/content
     expose:
       - "2368"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2368/').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
     networks:
       - nginx-network
       - data-internal

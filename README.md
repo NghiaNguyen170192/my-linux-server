@@ -92,7 +92,7 @@ ssh -i $env:USERPROFILE\.ssh\deploy_key USERNAME@YOUR_VPS_ADDRESS
 
 `sudo -n whoami` should print `root`. After that succeeds, close the root session. Further SSH as root is refused.
 
-A merge to `main` then copies the repository to `/opt/my-linux-server` as the deploy user. It does not install Docker, issue a certificate, or start containers. Those stay behind the **containers** and **bootstrap** switches on a manual Deploy run, for a later step.
+A merge to `main` then copies the repository to `/opt/my-linux-server` as the deploy user. It does not install Docker or issue a certificate. The first container start stays behind the **containers** and **bootstrap** switches on a manual Deploy run. Later merges reload nginx and start Ghost when that env file is already on the server.
 
 ## 7. Accept web traffic only from Cloudflare
 
@@ -179,7 +179,7 @@ https://flower.YOUR_DOMAIN shows Celery workers. Put it behind Cloudflare Access
 
 ## 13. Operate
 
-A merge to `main` copies this repo to the server as the deploy user. Containers start only when you run Deploy with **containers** enabled.
+A merge to `main` copies this repo to the server as the deploy user, reloads nginx, and starts Ghost when `selfhost/.env` is already on the server. The other stacks start only when you run Deploy with **containers** enabled.
 
 Pull a stack and recreate it. Example for the management stack:
 
