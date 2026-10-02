@@ -5,7 +5,8 @@ VPS setup steps are in the [repository README](../README.md). This folder is wha
 ```text
 selfhost/
 ├── .env.example
-├── blog/                         # Astro site, YOUR_DOMAIN
+├── blog/                         # Astro site, not started
+├── ghost/                        # Ghost and MySQL, served at YOUR_DOMAIN
 ├── data/                         # Airflow, Postgres, Redis, MinIO, pgAdmin
 │   ├── dags/
 │   ├── plugins/
@@ -31,7 +32,7 @@ selfhost/
 Two Docker networks:
 
 - `nginx-network` is the only network nginx can route to.
-- `data-internal` holds Postgres and Redis. nginx is not on that network. Keycloak and RedisInsight join it so they can reach those databases, and they also join `nginx-network` so the proxy can reach them.
+- `data-internal` holds Postgres, Redis, and Ghost's MySQL. nginx is not on that network. Keycloak, RedisInsight, and Ghost join it so they can reach those databases, and they also join `nginx-network` so the proxy can reach them.
 
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 

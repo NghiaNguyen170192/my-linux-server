@@ -1,0 +1,64 @@
+# Ghost (ghost.org) and its MySQL database.
+# The site is https://${DOMAIN}. MySQL is not published.
+
+services:
+  ghost-db:
+    image: mysql:8.0
+    container_name: ghost-db
+    hostname: ghost-db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost
+      MYSQL_PASSWORD: ${GHOST_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${GHOST_DB_ROOT_PASSWORD}
+    volumes:
+      - ghost-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks:
+      - data-internal
+
+  ghost:
+    image: ghost:5-alpine
+    container_name: ghost
+    hostname: ghost
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      ghost-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      url: https://${DOMAIN}
+      database__client: mysql
+      database__connection__host: ghost-db
+      database__connection__user: ghost
+      database__connection__password: ${GHOST_DB_PASSWORD}
+      database__connection__database: ghost
+    volumes:
+      - ghost-content:/var/lib/ghost/content
+    expose:
+      - "2368"
+    networks:
+      - nginx-network
+      - data-internal
+
+networks:
+  nginx-network:
+    external: true
+    name: nginx-network
+  data-internal:
+    external: true
+    name: data-internal
+
+volumes:
+  ghost-db:
+  ghost-content:
