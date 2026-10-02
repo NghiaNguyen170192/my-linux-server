@@ -108,7 +108,6 @@ compose() {
 
 compose -f networking/docker-compose.yml up -d
 compose -f blog/docker-compose.yml down
-compose -f ghost/docker-compose.yml up -d
 if [[ "${WITH_DATA}" -eq 1 ]]; then
   compose -f data/docker-compose.yml up -d
   if [[ "${WITH_FLOWER}" -eq 1 ]]; then
@@ -125,6 +124,6 @@ if [[ "${WITH_KOMGA}" -eq 1 ]]; then
   compose -f media/docker-compose.yml up -d
 fi
 
-docker exec nginx nginx -t
+bash "${ROOT}/scripts/reload-nginx.sh"
 echo
 echo "Stacks are up. Open https://${DOMAIN} after Cloudflare is proxying the DNS records."

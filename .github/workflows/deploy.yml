@@ -236,6 +236,11 @@ jobs:
           scp "$RUNNER_TEMP/cloudflare.ini" "vps:${DEPLOY_PATH}/selfhost/networking/certbot/cloudflare.ini"
           ssh vps "chmod 600 '${DEPLOY_PATH}/selfhost/.env' '${DEPLOY_PATH}/selfhost/networking/certbot/cloudflare.ini'"
 
+      - name: Reload nginx
+        run: |
+          set -euo pipefail
+          ssh vps "bash '${DEPLOY_PATH}/selfhost/scripts/reload-nginx.sh'"
+
       - name: Bootstrap the host
         if: github.event_name == 'workflow_dispatch' && inputs.bootstrap
         run: |
