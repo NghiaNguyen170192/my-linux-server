@@ -48,10 +48,12 @@ services:
     expose:
       - "2368"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:2368/').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      # A TCP check stays on the container port. Fetching the homepage follows
+      # Ghost's redirect to the public URL and the probe never succeeds.
+      test: ["CMD", "node", "-e", "const s=require('net').connect(2368,'127.0.0.1',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),4000)"]
       interval: 10s
       timeout: 5s
-      retries: 18
+      retries: 12
       start_period: 40s
     networks:
       - nginx-network
