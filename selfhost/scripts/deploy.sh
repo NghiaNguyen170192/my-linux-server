@@ -33,7 +33,7 @@ if [[ ! -f .env ]]; then
   echo "Copy .env.example to .env and edit it."
   exit 1
 fi
-if grep -Eq '^(POSTGRES_PASSWORD|REDIS_PASSWORD|MINIO_ROOT_PASSWORD|PGADMIN_DEFAULT_PASSWORD|FERNET_KEY|AIRFLOW_WWW_USER_PASSWORD|HOMARR_SECRET_ENCRYPTION_KEY|GRAFANA_ADMIN_PASSWORD|KEYCLOAK_DB_PASSWORD|KEYCLOAK_ADMIN_PASSWORD)=[[:space:]]*$' .env; then
+if grep -Eq '^(POSTGRES_PASSWORD|REDIS_PASSWORD|MINIO_ROOT_PASSWORD|PGADMIN_DEFAULT_PASSWORD|FERNET_KEY|AIRFLOW_WWW_USER_PASSWORD|HOMARR_SECRET_ENCRYPTION_KEY|GRAFANA_ADMIN_PASSWORD|KEYCLOAK_DB_PASSWORD|KEYCLOAK_ADMIN_PASSWORD|GHOST_DB_PASSWORD|GHOST_DB_ROOT_PASSWORD)=[[:space:]]*$' .env; then
   echo ".env still has an empty password or key."
   exit 1
 fi
@@ -65,6 +65,8 @@ require_secret AIRFLOW_WWW_USER_PASSWORD "${AIRFLOW_WWW_USER_PASSWORD}"
 require_secret GRAFANA_ADMIN_PASSWORD "${GRAFANA_ADMIN_PASSWORD}"
 require_secret KEYCLOAK_DB_PASSWORD "${KEYCLOAK_DB_PASSWORD}"
 require_secret KEYCLOAK_ADMIN_PASSWORD "${KEYCLOAK_ADMIN_PASSWORD}"
+require_secret GHOST_DB_PASSWORD "${GHOST_DB_PASSWORD}"
+require_secret GHOST_DB_ROOT_PASSWORD "${GHOST_DB_ROOT_PASSWORD}"
 
 if [[ ! "${FERNET_KEY}" =~ ^[A-Za-z0-9_-]{43}=$ ]]; then
   echo "FERNET_KEY must be a Fernet key. Generate one with:"
@@ -106,6 +108,7 @@ compose() {
 
 compose -f networking/docker-compose.yml up -d
 compose -f blog/docker-compose.yml up -d
+compose -f ghost/docker-compose.yml up -d
 if [[ "${WITH_DATA}" -eq 1 ]]; then
   compose -f data/docker-compose.yml up -d
   if [[ "${WITH_FLOWER}" -eq 1 ]]; then

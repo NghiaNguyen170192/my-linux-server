@@ -63,6 +63,8 @@ jobs:
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           KEYCLOAK_DB_PASSWORD: ${{ secrets.KEYCLOAK_DB_PASSWORD }}
           KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          GHOST_DB_PASSWORD: ${{ secrets.GHOST_DB_PASSWORD }}
+          GHOST_DB_ROOT_PASSWORD: ${{ secrets.GHOST_DB_ROOT_PASSWORD }}
         run: |
           set -euo pipefail
           missing=0
@@ -70,7 +72,7 @@ jobs:
             POSTGRES_PASSWORD REDIS_PASSWORD MINIO_ROOT_PASSWORD PGADMIN_DEFAULT_EMAIL \
             PGADMIN_DEFAULT_PASSWORD FERNET_KEY AIRFLOW_WWW_USER_PASSWORD \
             HOMARR_SECRET_ENCRYPTION_KEY GRAFANA_ADMIN_PASSWORD KEYCLOAK_DB_PASSWORD \
-            KEYCLOAK_ADMIN_PASSWORD; do
+            KEYCLOAK_ADMIN_PASSWORD GHOST_DB_PASSWORD GHOST_DB_ROOT_PASSWORD; do
             if [[ -z "${!name}" ]]; then
               echo "Missing GitHub secret: ${name}"
               missing=1
@@ -95,6 +97,8 @@ jobs:
           GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
           KEYCLOAK_DB_PASSWORD: ${{ secrets.KEYCLOAK_DB_PASSWORD }}
           KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          GHOST_DB_PASSWORD: ${{ secrets.GHOST_DB_PASSWORD }}
+          GHOST_DB_ROOT_PASSWORD: ${{ secrets.GHOST_DB_ROOT_PASSWORD }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -131,6 +135,8 @@ jobs:
               "KEYCLOAK_DB_USER": "keycloak",
               "KEYCLOAK_DB_PASSWORD": os.environ["KEYCLOAK_DB_PASSWORD"],
               "KEYCLOAK_DB_NAME": "keycloak",
+              "GHOST_DB_PASSWORD": os.environ["GHOST_DB_PASSWORD"],
+              "GHOST_DB_ROOT_PASSWORD": os.environ["GHOST_DB_ROOT_PASSWORD"],
           }
           lines = []
           for key, value in values.items():
