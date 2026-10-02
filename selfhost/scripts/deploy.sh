@@ -107,7 +107,7 @@ compose() {
 }
 
 compose -f networking/docker-compose.yml up -d
-compose -f blog/docker-compose.yml up -d
+compose -f blog/docker-compose.yml down
 compose -f ghost/docker-compose.yml up -d
 if [[ "${WITH_DATA}" -eq 1 ]]; then
   compose -f data/docker-compose.yml up -d

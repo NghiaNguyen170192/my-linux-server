@@ -1,5 +1,5 @@
 # Ghost (ghost.org) and its MySQL database.
-# The site is https://ghost.${DOMAIN}. MySQL is not published.
+# The site is https://${DOMAIN}. MySQL is not published.
 
 services:
   ghost-db:
@@ -37,7 +37,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      url: https://ghost.${DOMAIN}
+      url: https://${DOMAIN}
       database__client: mysql
       database__connection__host: ghost-db
       database__connection__user: ghost

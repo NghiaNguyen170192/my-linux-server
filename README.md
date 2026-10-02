@@ -10,7 +10,7 @@ The stacks live in [`selfhost/`](selfhost/README.md). The current step is the de
 flowchart LR
   client[Browser] --> cf[Cloudflare]
   cf --> nginx[nginx]
-  nginx --> blog[blog]
+  nginx --> ghost[Ghost]
   nginx --> airflow[Airflow]
   nginx --> minio[MinIO]
   nginx --> admin[Portainer Homarr Grafana Uptime Kuma pgAdmin]
@@ -21,7 +21,7 @@ flowchart LR
 
 | URL | Service |
 | --- | --- |
-| https://YOUR_DOMAIN | Astro blog |
+| https://YOUR_DOMAIN | Ghost |
 | https://airflow.YOUR_DOMAIN | Airflow |
 | https://minio.YOUR_DOMAIN | MinIO console |
 | https://s3.YOUR_DOMAIN | MinIO S3 API |
@@ -35,7 +35,7 @@ flowchart LR
 | https://komga.YOUR_DOMAIN | Komga books and comics, optional |
 | https://adguard.YOUR_DOMAIN | AdGuard Home, optional |
 | https://flower.YOUR_DOMAIN | Celery Flower, optional |
-| https://ghost.YOUR_DOMAIN | Ghost |
+| https://ghost.YOUR_DOMAIN | Redirects to the Ghost site on YOUR_DOMAIN |
 
 Postgres, Redis, Prometheus, and the node exporter have no public ports. nginx is the only published service.
 
@@ -140,7 +140,7 @@ Section 2 already turns off root SSH and password login. On Ubuntu, a later `Pas
 | pgAdmin | Email and password are `PGADMIN_DEFAULT_EMAIL` and `PGADMIN_DEFAULT_PASSWORD`. Register a server with host `postgres`, port `5432`, and the Postgres user, password, and database from `.env`. |
 | MinIO | Console user is `MINIO_ROOT_USER`. API endpoint for clients is `https://s3.YOUR_DOMAIN`. Cloudflare's free plan limits a proxied request body to 100 MB. |
 | Airflow | User and password are `AIRFLOW_WWW_USER_USERNAME` and `AIRFLOW_WWW_USER_PASSWORD`. Put DAG files in `data/dags`. Example DAGs are off. |
-| Ghost | Open https://ghost.YOUR_DOMAIN/ghost and create the owner account. The public site is https://ghost.YOUR_DOMAIN. MySQL is not reachable from the internet. |
+| Ghost | Open https://YOUR_DOMAIN/ghost and create the owner account. The public site is https://YOUR_DOMAIN. MySQL is not reachable from the internet. |
 | Keycloak | https://keycloak.YOUR_DOMAIN when the data stack is running. Admin user and password are `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD`. The database role is created in Postgres on first start. |
 | RedisInsight | https://redisinsight.YOUR_DOMAIN. Add a database with host `redis`, port `6379`, and `REDIS_PASSWORD`. |
 | AdGuard | Only present after `--with-adguard`. See below. |
@@ -149,7 +149,7 @@ Section 2 already turns off root SSH and password login. On Ubuntu, a later `Pas
 
 Application passwords stay in place. Access adds a login wall in front of them.
 
-In **Zero Trust → Access → Applications**, add a self-hosted application for each admin hostname (`airflow`, `minio`, `pgadmin`, `portainer`, `homarr`, `grafana`, `status`, `keycloak`, `redisinsight`, and `adguard` / `komga` / `flower` if you use them). Policy: allow your email. Leave `YOUR_DOMAIN`, `s3.YOUR_DOMAIN`, and `ghost.YOUR_DOMAIN` without Access so readers and S3 clients keep working. Ghost's admin is `https://ghost.YOUR_DOMAIN/ghost`. S3 clients authenticate with MinIO keys.
+In **Zero Trust → Access → Applications**, add a self-hosted application for each admin hostname (`airflow`, `minio`, `pgadmin`, `portainer`, `homarr`, `grafana`, `status`, `keycloak`, `redisinsight`, and `adguard` / `komga` / `flower` if you use them). Policy: allow your email. Leave `YOUR_DOMAIN` and `s3.YOUR_DOMAIN` without Access so readers and S3 clients keep working. Ghost's admin is `https://YOUR_DOMAIN/ghost`. S3 clients authenticate with MinIO keys.
 
 ## 12. Optional pieces
 

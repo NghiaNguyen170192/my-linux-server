@@ -5,8 +5,8 @@ VPS setup steps are in the [repository README](../README.md). This folder is wha
 ```text
 selfhost/
 ├── .env.example
-├── blog/                         # Astro site, YOUR_DOMAIN
-├── ghost/                        # Ghost and MySQL, ghost.YOUR_DOMAIN
+├── blog/                         # Astro site, not started
+├── ghost/                        # Ghost and MySQL, served at YOUR_DOMAIN
 ├── data/                         # Airflow, Postgres, Redis, MinIO, pgAdmin
 │   ├── dags/
 │   ├── plugins/
