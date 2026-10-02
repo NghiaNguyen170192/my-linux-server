@@ -33,7 +33,7 @@ if [[ ! -f .env ]]; then
   echo "Copy .env.example to .env and edit it."
   exit 1
 fi
-if grep -Eq '^(POSTGRES_PASSWORD|REDIS_PASSWORD|MINIO_ROOT_PASSWORD|PGADMIN_DEFAULT_PASSWORD|FERNET_KEY|AIRFLOW_WWW_USER_PASSWORD|HOMARR_SECRET_ENCRYPTION_KEY|GRAFANA_ADMIN_PASSWORD|KEYCLOAK_DB_PASSWORD|KEYCLOAK_ADMIN_PASSWORD|GHOST_DB_PASSWORD|GHOST_DB_ROOT_PASSWORD)=[[:space:]]*$' .env; then
+if grep -Eq '^(POSTGRES_PASSWORD|REDIS_PASSWORD|MINIO_ROOT_PASSWORD|PGADMIN_DEFAULT_PASSWORD|FERNET_KEY|AIRFLOW_WWW_USER_PASSWORD|HOMARR_SECRET_ENCRYPTION_KEY|GRAFANA_ADMIN_PASSWORD|KEYCLOAK_DB_PASSWORD|KEYCLOAK_ADMIN_PASSWORD|GHOST_DB_PASSWORD|GHOST_DB_ROOT_PASSWORD|JUPYTER_TOKEN|N8N_ENCRYPTION_KEY)=[[:space:]]*$' .env; then
   echo ".env still has an empty password or key."
   exit 1
 fi
@@ -67,6 +67,8 @@ require_secret KEYCLOAK_DB_PASSWORD "${KEYCLOAK_DB_PASSWORD}"
 require_secret KEYCLOAK_ADMIN_PASSWORD "${KEYCLOAK_ADMIN_PASSWORD}"
 require_secret GHOST_DB_PASSWORD "${GHOST_DB_PASSWORD}"
 require_secret GHOST_DB_ROOT_PASSWORD "${GHOST_DB_ROOT_PASSWORD}"
+require_secret JUPYTER_TOKEN "${JUPYTER_TOKEN:-}"
+require_secret N8N_ENCRYPTION_KEY "${N8N_ENCRYPTION_KEY:-}"
 
 if [[ ! "${FERNET_KEY}" =~ ^[A-Za-z0-9_-]{43}=$ ]]; then
   echo "FERNET_KEY must be a Fernet key. Generate one with:"
@@ -123,6 +125,8 @@ fi
 if [[ "${WITH_KOMGA}" -eq 1 ]]; then
   compose -f media/docker-compose.yml up -d
 fi
+compose -f notebooks/docker-compose.yml up -d
+compose -f n8n/docker-compose.yml up -d
 
 bash "${ROOT}/scripts/reload-nginx.sh"
 echo

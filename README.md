@@ -11,6 +11,8 @@ flowchart LR
   client[Browser] --> cf[Cloudflare]
   cf --> nginx[nginx]
   nginx --> ghost[Ghost]
+  nginx --> notebooks[Jupyter]
+  nginx --> n8n[n8n]
   nginx --> airflow[Airflow]
   nginx --> minio[MinIO]
   nginx --> admin[Portainer Homarr Grafana Uptime Kuma pgAdmin]
@@ -36,6 +38,8 @@ flowchart LR
 | https://adguard.YOUR_DOMAIN | AdGuard Home, optional |
 | https://flower.YOUR_DOMAIN | Celery Flower, optional |
 | https://ghost.YOUR_DOMAIN | Redirects to the Ghost site on YOUR_DOMAIN |
+| https://notebooks.YOUR_DOMAIN | JupyterLab, conda, and a Python kernel |
+| https://n8n.YOUR_DOMAIN | n8n playground |
 
 Postgres, Redis, Prometheus, and the node exporter have no public ports. nginx is the only published service.
 
@@ -141,6 +145,8 @@ Section 2 already turns off root SSH and password login. On Ubuntu, a later `Pas
 | MinIO | Console user is `MINIO_ROOT_USER`. API endpoint for clients is `https://s3.YOUR_DOMAIN`. Cloudflare's free plan limits a proxied request body to 100 MB. |
 | Airflow | User and password are `AIRFLOW_WWW_USER_USERNAME` and `AIRFLOW_WWW_USER_PASSWORD`. Put DAG files in `data/dags`. Example DAGs are off. |
 | Ghost | Open https://YOUR_DOMAIN/ghost and create the owner account. The public site is https://YOUR_DOMAIN. MySQL is not reachable from the internet. |
+| Jupyter | Open https://notebooks.YOUR_DOMAIN and sign in with `JUPYTER_TOKEN`. Conda and the Python 3 kernel are already installed. Notebooks and extra conda environments stay in Docker volumes. |
+| n8n | Open https://n8n.YOUR_DOMAIN and create the owner account. Workflows stay in the container volume. SQLite is not published. |
 | Keycloak | https://keycloak.YOUR_DOMAIN when the data stack is running. Admin user and password are `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD`. The database role is created in Postgres on first start. |
 | RedisInsight | https://redisinsight.YOUR_DOMAIN. Add a database with host `redis`, port `6379`, and `REDIS_PASSWORD`. |
 | AdGuard | Only present after `--with-adguard`. See below. |
@@ -149,7 +155,7 @@ Section 2 already turns off root SSH and password login. On Ubuntu, a later `Pas
 
 Application passwords stay in place. Access adds a login wall in front of them.
 
-In **Zero Trust → Access → Applications**, add a self-hosted application for each admin hostname (`airflow`, `minio`, `pgadmin`, `portainer`, `homarr`, `grafana`, `status`, `keycloak`, `redisinsight`, and `adguard` / `komga` / `flower` if you use them). Policy: allow your email. Leave `YOUR_DOMAIN` and `s3.YOUR_DOMAIN` without Access so readers and S3 clients keep working. Ghost's admin is `https://YOUR_DOMAIN/ghost`. S3 clients authenticate with MinIO keys.
+In **Zero Trust → Access → Applications**, add a self-hosted application for each admin hostname (`airflow`, `minio`, `pgadmin`, `portainer`, `homarr`, `grafana`, `status`, `keycloak`, `redisinsight`, `notebooks`, `n8n`, and `adguard` / `komga` / `flower` if you use them). Policy: allow your email. Leave `YOUR_DOMAIN` and `s3.YOUR_DOMAIN` without Access so readers and S3 clients keep working. Ghost's admin is `https://YOUR_DOMAIN/ghost`. S3 clients authenticate with MinIO keys.
 
 ## 12. Optional pieces
 
