@@ -106,6 +106,12 @@ compose() {
   docker compose --env-file "${ROOT}/.env" "$@"
 }
 
+# Older checkouts left a second apex config. Nginx keeps the first and
+# ignores Ghost's server for the same hostname.
+find networking/nginx/conf.d -maxdepth 1 -type f \
+  \( -name '*default.conf' -o -name '20-*.dev.conf' \) \
+  -delete
+
 compose -f networking/docker-compose.yml up -d
 compose -f blog/docker-compose.yml down
 compose -f ghost/docker-compose.yml up -d
@@ -126,5 +132,6 @@ if [[ "${WITH_KOMGA}" -eq 1 ]]; then
 fi
 
 docker exec nginx nginx -t
+docker exec nginx nginx -s reload
 echo
 echo "Stacks are up. Open https://${DOMAIN} after Cloudflare is proxying the DNS records."
