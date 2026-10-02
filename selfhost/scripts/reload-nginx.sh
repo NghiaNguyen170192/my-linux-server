@@ -22,8 +22,8 @@ if [[ -f .env ]]; then
     ghost_ready=1
   else
     echo "Ghost did not become ready."
-    docker logs --tail 80 ghost-db || true
-    docker logs --tail 120 ghost || true
+    docker inspect --format '{{range .State.Health.Log}}exit {{.ExitCode}}: {{.Output}}{{end}}' ghost || true
+    docker logs --tail 40 ghost || true
   fi
 fi
 
