@@ -14,6 +14,7 @@ WITH_ADGUARD=0
 WITH_FLOWER=0
 WITH_KOMGA=0
 WITH_DATA=0
+WITH_BEONI=0
 for arg in "$@"; do
   [[ -z "${arg}" ]] && continue
   case "$arg" in
@@ -22,6 +23,7 @@ for arg in "$@"; do
     --with-komga) WITH_KOMGA=1 ;;
     --with-data) WITH_DATA=1 ;;
     --without-data) WITH_DATA=0 ;;
+    --with-beoni) WITH_BEONI=1 ;;
     *)
       echo "Unknown option: $arg"
       exit 1
@@ -128,6 +130,18 @@ if [[ "${WITH_KOMGA}" -eq 1 ]]; then
 fi
 compose -f notebooks/docker-compose.yml up -d
 compose -f n8n/docker-compose.yml up -d
+
+if [[ "${WITH_BEONI}" -eq 1 ]]; then
+  if [[ -z "${BEONI_OMS_PATH:-}" ]]; then
+    echo "BEONI_OMS_PATH is not set in .env — skipping beoni stack."
+  else
+    docker compose \
+      -f "${BEONI_OMS_PATH}/compose.yml" \
+      -f "${BEONI_OMS_PATH}/compose.nginx.yml" \
+      --env-file "${BEONI_OMS_PATH}/.env" \
+      up -d --build
+  fi
+fi
 
 bash "${ROOT}/scripts/reload-nginx.sh"
 echo

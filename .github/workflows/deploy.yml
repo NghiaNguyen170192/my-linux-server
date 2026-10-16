@@ -13,6 +13,10 @@ on:
         description: Issue the certificate and start containers
         type: boolean
         default: false
+      beoni:
+        description: Deploy beoni-oms at beoni.DOMAIN (requires BEONI_* secrets)
+        type: boolean
+        default: false
 
 concurrency:
   group: deploy-main
@@ -84,6 +88,25 @@ jobs:
           done
           test "${missing}" -eq 0
 
+      - name: Check beoni secrets
+        if: github.event_name == 'workflow_dispatch' && inputs.containers && inputs.beoni
+        env:
+          BEONI_POSTGRES_PASSWORD: ${{ secrets.BEONI_POSTGRES_PASSWORD }}
+          BEONI_SECRET_KEY: ${{ secrets.BEONI_SECRET_KEY }}
+          BEONI_FIRST_SUPERUSER: ${{ secrets.BEONI_FIRST_SUPERUSER }}
+          BEONI_FIRST_SUPERUSER_PASSWORD: ${{ secrets.BEONI_FIRST_SUPERUSER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in BEONI_POSTGRES_PASSWORD BEONI_SECRET_KEY \
+            BEONI_FIRST_SUPERUSER BEONI_FIRST_SUPERUSER_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+          test "${missing}" -eq 0
+
       - name: Build secret files
         if: github.event_name == 'workflow_dispatch' && inputs.containers
         env:
@@ -106,6 +129,10 @@ jobs:
           JUPYTER_TOKEN: ${{ secrets.JUPYTER_TOKEN }}
           N8N_ENCRYPTION_KEY: ${{ secrets.N8N_ENCRYPTION_KEY }}
           N8N_RUNNERS_AUTH_TOKEN: ${{ secrets.N8N_RUNNERS_AUTH_TOKEN }}
+          BEONI_POSTGRES_PASSWORD: ${{ secrets.BEONI_POSTGRES_PASSWORD }}
+          BEONI_SECRET_KEY: ${{ secrets.BEONI_SECRET_KEY }}
+          BEONI_FIRST_SUPERUSER: ${{ secrets.BEONI_FIRST_SUPERUSER }}
+          BEONI_FIRST_SUPERUSER_PASSWORD: ${{ secrets.BEONI_FIRST_SUPERUSER_PASSWORD }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -147,6 +174,9 @@ jobs:
               "JUPYTER_TOKEN": os.environ["JUPYTER_TOKEN"],
               "N8N_ENCRYPTION_KEY": os.environ["N8N_ENCRYPTION_KEY"],
               "N8N_RUNNERS_AUTH_TOKEN": os.environ["N8N_RUNNERS_AUTH_TOKEN"],
+              "BEONI_OMS_PATH": "/opt/beoni-oms",
+              "CERTBOT_BEONI_DOMAIN": f"beoni.{domain}",
+              "CERTBOT_BEONI_WILDCARD_DOMAIN": f"*.beoni.{domain}",
           }
           lines = []
           for key, value in values.items():
@@ -158,9 +188,43 @@ jobs:
           token = os.environ["CLOUDFLARE_API_TOKEN"].strip()
           if not token or any(char in token for char in "\n\r "):
               raise SystemExit("CLOUDFLARE_API_TOKEN must be a single token with no spaces")
-          (out / "cloudflare.ini").write_text(f"dns_cloudflare_api_token = {token}\n")
+          ini_key = "dns_cloudflare_api_token"
+          (out / "cloudflare.ini").write_text(f"{ini_key} = {token}\n")
           os.chmod(out / "selfhost.env", 0o600)
           os.chmod(out / "cloudflare.ini", 0o600)
+          if os.environ.get("BEONI_POSTGRES_PASSWORD"):
+              beoni_domain = f"beoni.{domain}"
+              beoni_values = {
+                  "DOMAIN": beoni_domain,
+                  "FRONTEND_HOST": f"https://{beoni_domain}",
+                  "ENVIRONMENT": "production",
+                  "BACKEND_CORS_ORIGINS": f"https://{beoni_domain}",
+                  "POSTGRES_SERVER": "db",
+                  "POSTGRES_PORT": "5432",
+                  "POSTGRES_USER": "beoni",
+                  "POSTGRES_PASSWORD": os.environ["BEONI_POSTGRES_PASSWORD"],
+                  "POSTGRES_DB": "beoni_oms",
+                  "SECRET_KEY": os.environ["BEONI_SECRET_KEY"],
+                  "FIRST_SUPERUSER": os.environ["BEONI_FIRST_SUPERUSER"],
+                  "FIRST_SUPERUSER_PASSWORD": os.environ["BEONI_FIRST_SUPERUSER_PASSWORD"],
+                  "SMTP_HOST": "",
+                  "SMTP_USER": "",
+                  "SMTP_PASSWORD": "",
+                  "EMAILS_FROM_EMAIL": "",
+                  "SENTRY_DSN": "",
+                  "STACK_NAME": "beoni-oms",
+                  "DOCKER_IMAGE_BACKEND": "beoni-oms-backend",
+                  "DOCKER_IMAGE_FRONTEND": "beoni-oms-frontend",
+                  "TAG": "latest",
+              }
+              beoni_lines = []
+              for key, value in beoni_values.items():
+                  if any(char in value for char in "\n\r"):
+                      raise SystemExit(f"BEONI {key} must be a single line")
+                  escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+                  beoni_lines.append(f'{key}="{escaped}"')
+              (out / "beoni.env").write_text("\n".join(beoni_lines) + "\n")
+              os.chmod(out / "beoni.env", 0o600)
           PY
 
       - name: Open SSH
@@ -246,6 +310,37 @@ jobs:
           scp "$RUNNER_TEMP/cloudflare.ini" "vps:${DEPLOY_PATH}/selfhost/networking/certbot/cloudflare.ini"
           ssh vps "chmod 600 '${DEPLOY_PATH}/selfhost/.env' '${DEPLOY_PATH}/selfhost/networking/certbot/cloudflare.ini'"
 
+      - name: Checkout beoni-oms
+        if: github.event_name == 'workflow_dispatch' && inputs.containers && inputs.beoni
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.BEONI_OMS_REPO || 'NghiaNguyen170192/beoni-oms' }}
+          token: ${{ secrets.BEONI_GITHUB_TOKEN || github.token }}
+          path: beoni-oms-src
+
+      - name: Copy beoni-oms repository
+        if: github.event_name == 'workflow_dispatch' && inputs.containers && inputs.beoni
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${SSH_USER}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+            echo "SSH_USER must be a plain Linux username."
+            exit 1
+          fi
+          ssh vps "sudo -n mkdir -p /opt/beoni-oms && sudo -n chown -R '${SSH_USER}:${SSH_USER}' /opt/beoni-oms"
+          tar -C "$GITHUB_WORKSPACE/beoni-oms-src" -czf - \
+            --exclude=.git \
+            --exclude=.env \
+            . | ssh vps "tar -xzf - --overwrite --no-same-owner -C /opt/beoni-oms"
+
+      - name: Install beoni secrets
+        if: github.event_name == 'workflow_dispatch' && inputs.containers && inputs.beoni
+        run: |
+          set -euo pipefail
+          scp "$RUNNER_TEMP/beoni.env" "vps:/opt/beoni-oms/.env"
+          ssh vps "chmod 600 /opt/beoni-oms/.env"
+
       - name: Reload nginx
         run: |
           set -euo pipefail
@@ -268,4 +363,8 @@ jobs:
             set -f
             quoted="$(printf '%q ' ${DEPLOY_ARGS})"
           fi
-          ssh vps "bash '${DEPLOY_PATH}/selfhost/scripts/ci-deploy.sh' ${quoted}"
+          beoni_flag=""
+          if [[ "${{ inputs.beoni }}" == "true" ]]; then
+            beoni_flag="--with-beoni"
+          fi
+          ssh vps "bash '${DEPLOY_PATH}/selfhost/scripts/ci-deploy.sh' ${quoted} ${beoni_flag}"
