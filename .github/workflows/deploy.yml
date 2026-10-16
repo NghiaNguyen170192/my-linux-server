@@ -188,11 +188,11 @@ jobs:
           token = os.environ["CLOUDFLARE_API_TOKEN"].strip()
           if not token or any(char in token for char in "\n\r "):
               raise SystemExit("CLOUDFLARE_API_TOKEN must be a single token with no spaces")
-          (out / "cloudflare.ini").write_text(f"dns_cloudflare_api_token = {token}\n")
+          ini_key = "dns_cloudflare_api_token"
+          (out / "cloudflare.ini").write_text(f"{ini_key} = {token}\n")
           os.chmod(out / "selfhost.env", 0o600)
           os.chmod(out / "cloudflare.ini", 0o600)
-          beoni_pg = os.environ.get("BEONI_POSTGRES_PASSWORD", "")
-          if beoni_pg:
+          if os.environ.get("BEONI_POSTGRES_PASSWORD"):
               beoni_domain = f"beoni.{domain}"
               beoni_values = {
                   "DOMAIN": beoni_domain,
@@ -202,7 +202,7 @@ jobs:
                   "POSTGRES_SERVER": "db",
                   "POSTGRES_PORT": "5432",
                   "POSTGRES_USER": "beoni",
-                  "POSTGRES_PASSWORD": beoni_pg,
+                  "POSTGRES_PASSWORD": os.environ["BEONI_POSTGRES_PASSWORD"],
                   "POSTGRES_DB": "beoni_oms",
                   "SECRET_KEY": os.environ["BEONI_SECRET_KEY"],
                   "FIRST_SUPERUSER": os.environ["BEONI_FIRST_SUPERUSER"],
