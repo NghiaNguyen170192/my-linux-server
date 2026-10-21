@@ -143,7 +143,8 @@ if [[ "${WITH_BEONI}" -eq 1 ]]; then
   fi
   require_secret BEONI_POSTGRES_PASSWORD "${BEONI_POSTGRES_PASSWORD:-}"
   require_secret BEONI_FIRST_SUPERUSER_PASSWORD "${BEONI_FIRST_SUPERUSER_PASSWORD:-}"
-  if [[ "${#BEONI_SECRET_KEY:-}" -lt 32 ]]; then
+  beoni_secret="${BEONI_SECRET_KEY:-}"
+  if [[ "${#beoni_secret}" -lt 32 ]]; then
     echo "BEONI_SECRET_KEY must be at least 32 characters."
     exit 1
   fi
