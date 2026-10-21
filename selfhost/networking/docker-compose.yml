@@ -44,8 +44,6 @@ services:
       - -d
       - ${CERTBOT_WILDCARD_DOMAIN}
       - -d
-      - ${CERTBOT_BEONI_DOMAIN}
-      - -d
       - ${CERTBOT_BEONI_WILDCARD_DOMAIN}
 
 networks:

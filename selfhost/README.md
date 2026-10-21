@@ -61,6 +61,6 @@ The same `DOCKERHUB_USERNAME` and a token that can push go on the beoni-oms repo
 
 **Deploy:** publish the images first, then run Deploy here with **containers** and **beoni** checked. That writes the secrets, creates the Cloudflare records below, pulls the images, creates the database, and runs migrations.
 
-**Cloudflare DNS:** `*.YOUR_DOMAIN` does not cover `api.beoni.YOUR_DOMAIN`. The workflow creates proxied `A` records `beoni` and `*.beoni` pointing at the VPS. The certificate already includes `beoni.YOUR_DOMAIN` and `*.beoni.YOUR_DOMAIN`.
+**Cloudflare DNS:** `*.YOUR_DOMAIN` does not cover `api.beoni.YOUR_DOMAIN`. The workflow creates proxied `A` records `beoni` and `*.beoni` pointing at the VPS. The certificate requests `*.YOUR_DOMAIN` and `*.beoni.YOUR_DOMAIN`. `beoni.YOUR_DOMAIN` is already inside the first wildcard, so it is not listed again.
 
 In pgAdmin, add a server with host `postgres`, user `beoni`, database `beoni_oms`.
