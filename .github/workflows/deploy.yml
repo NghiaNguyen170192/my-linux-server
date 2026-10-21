@@ -180,7 +180,6 @@ jobs:
               "JUPYTER_TOKEN": os.environ["JUPYTER_TOKEN"],
               "N8N_ENCRYPTION_KEY": os.environ["N8N_ENCRYPTION_KEY"],
               "N8N_RUNNERS_AUTH_TOKEN": os.environ["N8N_RUNNERS_AUTH_TOKEN"],
-              "CERTBOT_BEONI_DOMAIN": f"beoni.{domain}",
               "CERTBOT_BEONI_WILDCARD_DOMAIN": f"*.beoni.{domain}",
           }
           if os.environ.get("DEPLOY_BEONI") == "true":
