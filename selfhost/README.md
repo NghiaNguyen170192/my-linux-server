@@ -9,7 +9,7 @@ selfhost/
 ├── ghost/                        # Ghost and MySQL, served at YOUR_DOMAIN
 ├── notebooks/                    # JupyterLab, conda, Python kernel
 ├── n8n/                          # n8n playground
-├── data/                         # Airflow, Postgres, Redis, MinIO, pgAdmin
+├── data/                         # Airflow, Postgres, Redis, MinIO, pgAdmin, Beoni OMS profile
 │   ├── dags/
 │   ├── plugins/
 │   └── config/
@@ -39,3 +39,28 @@ Two Docker networks:
 Airflow settings come from `data/docker-compose.yml` and `.env`. There is no checked-in `airflow.cfg`.
 
 `scripts/setup-deploy-user.sh` runs once, as root, before GitHub can log in. After that, the Deploy workflow is what runs on the server. Enable **bootstrap** for Docker, the firewall, and fail2ban. Enable **containers** to issue the certificate and start the stacks. Airflow, Postgres, Redis, MinIO, and pgAdmin stay off until `DEPLOY_ARGS` includes `--with-data`. `--with-adguard`, `--with-komga`, and `--with-flower` add those services.
+
+## beoni-oms
+
+`beoni.YOUR_DOMAIN` and `api.beoni.YOUR_DOMAIN` are the `beoni` profile in `data/docker-compose.yml`. They use the shared Postgres (database `beoni_oms`, role `beoni`). nginx already proxies them. pgAdmin is the database UI. There is no Traefik and no Adminer.
+
+Images are `${DOCKERHUB_USERNAME}/beoni-oms-backend` and `${DOCKERHUB_USERNAME}/beoni-oms-frontend` on Docker Hub. The beoni-oms repo publishes them from `.github/workflows/publish-images.yml` on each push to `master`.
+
+**GitHub secrets** on this repo, before enabling the beoni switch:
+
+| Secret | Description |
+|--------|-------------|
+| `BEONI_POSTGRES_PASSWORD` | Password for the `beoni` role. 16+ letters and digits. |
+| `BEONI_SECRET_KEY` | FastAPI signing key (`python3 -c "import secrets; print(secrets.token_urlsafe(32))"`) |
+| `BEONI_FIRST_SUPERUSER` | Email of the initial admin user |
+| `BEONI_FIRST_SUPERUSER_PASSWORD` | Password for that user. 16+ letters and digits. |
+| `DOCKERHUB_USERNAME` | Docker Hub account that owns the images |
+| `DOCKERHUB_TOKEN` | Docker Hub access token that can pull those images |
+
+The same `DOCKERHUB_USERNAME` and a token that can push go on the beoni-oms repo.
+
+**Deploy:** publish the images first, then run Deploy here with **containers** and **beoni** checked. That writes the secrets, creates the Cloudflare records below, pulls the images, creates the database, and runs migrations.
+
+**Cloudflare DNS:** `*.YOUR_DOMAIN` does not cover `api.beoni.YOUR_DOMAIN`. The workflow creates proxied `A` records `beoni` and `*.beoni` pointing at the VPS. The certificate already includes `beoni.YOUR_DOMAIN` and `*.beoni.YOUR_DOMAIN`.
+
+In pgAdmin, add a server with host `postgres`, user `beoni`, database `beoni_oms`.

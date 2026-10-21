@@ -1,0 +1,7 @@
+version: 2
+ignore-paths:
+  # The "Build secret files" step constructs .env and .ini files from GitHub
+  # Secrets at runtime. Key names such as POSTGRES_PASSWORD, SECRET_KEY, and
+  # dns_cloudflare_api_token appear as dict keys / INI keys here but carry no
+  # actual secret values — all values come from os.environ at CI runtime.
+  - .github/workflows/deploy.yml
