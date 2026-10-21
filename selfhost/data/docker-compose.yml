@@ -1,5 +1,6 @@
 # Airflow, Postgres, Redis, MinIO, pgAdmin.
 # Postgres and Redis stay on the private data-internal network.
+# Profile "beoni" is the OMS API and dashboard. They use this Postgres, not their own.
 # The Deploy workflow starts this when containers is enabled.
 
 x-airflow-common: &airflow-common
@@ -287,10 +288,115 @@ services:
       - nginx-network
       - data-internal
 
+  # Separate role and database on the shared Postgres. Same idea as keycloak-db-init.
+  beoni-db-init:
+    image: postgres:16-alpine
+    container_name: beoni-db-init
+    profiles: ["beoni"]
+    restart: "no"
+    entrypoint: ["sh", "-ec"]
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BEONI_POSTGRES_USER: ${BEONI_POSTGRES_USER:-beoni}
+      BEONI_POSTGRES_PASSWORD: ${BEONI_POSTGRES_PASSWORD:-}
+      BEONI_POSTGRES_DB: ${BEONI_POSTGRES_DB:-beoni_oms}
+    command:
+      - |
+        psql -d postgres -v ON_ERROR_STOP=1 \
+          -v app_user="$$BEONI_POSTGRES_USER" \
+          -v app_pass="$$BEONI_POSTGRES_PASSWORD" \
+          -v app_db="$$BEONI_POSTGRES_DB" <<'SQL'
+        SELECT format('CREATE ROLE %I LOGIN PASSWORD %L', :'app_user', :'app_pass')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') \gexec
+        SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', :'app_user', :'app_pass')
+        WHERE EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user') \gexec
+        SELECT format('CREATE DATABASE %I OWNER %I', :'app_db', :'app_user')
+        WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = :'app_db') \gexec
+        SQL
+    networks:
+      - data-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  beoni-prestart:
+    image: ${DOCKERHUB_USERNAME:-unset}/beoni-oms-backend:${BEONI_IMAGE_TAG:-latest}
+    container_name: beoni-prestart
+    profiles: ["beoni"]
+    restart: "no"
+    command: bash scripts/prestart.sh
+    environment: &beoni-env
+      PROJECT_NAME: Beoni OMS
+      FRONTEND_HOST: https://beoni.${DOMAIN}
+      ENVIRONMENT: production
+      BACKEND_CORS_ORIGINS: https://beoni.${DOMAIN}
+      SECRET_KEY: ${BEONI_SECRET_KEY:-}
+      FIRST_SUPERUSER: ${BEONI_FIRST_SUPERUSER:-}
+      FIRST_SUPERUSER_PASSWORD: ${BEONI_FIRST_SUPERUSER_PASSWORD:-}
+      POSTGRES_SERVER: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${BEONI_POSTGRES_DB:-beoni_oms}
+      POSTGRES_USER: ${BEONI_POSTGRES_USER:-beoni}
+      POSTGRES_PASSWORD: ${BEONI_POSTGRES_PASSWORD:-}
+    networks:
+      - data-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      beoni-db-init:
+        condition: service_completed_successfully
+
+  beoni-backend:
+    image: ${DOCKERHUB_USERNAME:-unset}/beoni-oms-backend:${BEONI_IMAGE_TAG:-latest}
+    container_name: beoni-backend
+    hostname: beoni-backend
+    profiles: ["beoni"]
+    restart: unless-stopped
+    environment:
+      <<: *beoni-env
+    volumes:
+      - beoni-media:/app/backend/media
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/utils/health-check/')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - nginx-network
+      - data-internal
+    depends_on:
+      postgres:
+        condition: service_healthy
+      beoni-db-init:
+        condition: service_completed_successfully
+      beoni-prestart:
+        condition: service_completed_successfully
+
+  beoni-frontend:
+    image: ${DOCKERHUB_USERNAME:-unset}/beoni-oms-frontend:${BEONI_IMAGE_TAG:-latest}
+    container_name: beoni-frontend
+    hostname: beoni-frontend
+    profiles: ["beoni"]
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - nginx-network
+
 volumes:
   postgres-db-volume:
   pgadmin-data:
   redis-data:
+  beoni-media:
 
 networks:
   nginx-network:
