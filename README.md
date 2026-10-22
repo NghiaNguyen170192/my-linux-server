@@ -43,7 +43,7 @@ flowchart LR
 | https://notebooks.YOUR_DOMAIN | JupyterLab, conda, and a Python kernel |
 | https://n8n.YOUR_DOMAIN | n8n playground |
 | https://beoni.YOUR_DOMAIN | Beoni OMS |
-| https://api.beoni.YOUR_DOMAIN | Beoni OMS API |
+| https://beoni-api.YOUR_DOMAIN | Beoni OMS API |
 
 Postgres, Redis, Prometheus, and the node exporter have no public ports. nginx is the only published service.
 
@@ -53,7 +53,7 @@ Use a VPS with 2 vCPU and 4 GB of RAM when Airflow is included. Ubuntu 24.04 or 
 
 In the Cloudflare dashboard for `YOUR_DOMAIN`:
 
-1. **DNS → Records**. Add an `A` record for `@` pointing at the VPS IPv4 address, proxy on (orange cloud). Add an `A` record for `*` with the same address, proxy on. Add an `AAAA` record for each if the VPS has IPv6. Proxied wildcards work on every Cloudflare plan. That `*` record covers one label, such as `beoni.YOUR_DOMAIN`. It does not cover `api.beoni.YOUR_DOMAIN`. Deploy with **beoni** checked creates proxied `A` records for `beoni` and `*.beoni`.
+1. **DNS → Records**. Add an `A` record for `@` pointing at the VPS IPv4 address, proxy on (orange cloud). Add an `A` record for `*` with the same address, proxy on. Add an `AAAA` record for each if the VPS has IPv6. Proxied wildcards work on every Cloudflare plan. That certificate covers one label, such as `beoni.YOUR_DOMAIN` and `beoni-api.YOUR_DOMAIN`. It does not cover `api.beoni.YOUR_DOMAIN`. Deploy with **beoni** checked creates proxied `A` records for `beoni` and `beoni-api`.
 2. **SSL/TLS → Overview**. Set the mode to **Full (strict)** after the first successful deploy. Before the origin certificate exists, Cloudflare returns error 526, which is expected.
 3. **SSL/TLS → Edge Certificates**. Turn on **Always Use HTTPS** and **Automatic HTTPS Rewrites**. Set **Minimum TLS Version** to 1.2.
 4. **Security → Settings**. Turn on **Bot Fight Mode**. Leave the free managed WAF ruleset enabled.
@@ -151,7 +151,7 @@ Section 2 already turns off root SSH and password login. On Ubuntu, a later `Pas
 | Ghost | Open https://YOUR_DOMAIN/ghost and create the owner account. The public site is https://YOUR_DOMAIN. MySQL is not reachable from the internet. |
 | Jupyter | Open https://notebooks.YOUR_DOMAIN and sign in with `JUPYTER_TOKEN`. Conda and the Python 3 kernel are already installed. Notebooks and extra conda environments stay in Docker volumes. |
 | n8n | Open https://n8n.YOUR_DOMAIN and create the owner account. Workflows stay in the container volume. JavaScript and Python Code nodes run in the separate runners container. SQLite is not published. |
-| Beoni OMS | https://beoni.YOUR_DOMAIN after Deploy with **beoni** checked. Sign in with `BEONI_FIRST_SUPERUSER`. The API is https://api.beoni.YOUR_DOMAIN. The database is `beoni_oms` on the shared Postgres; open it from pgAdmin. |
+| Beoni OMS | https://beoni.YOUR_DOMAIN after Deploy with **beoni** checked. Sign in with `BEONI_FIRST_SUPERUSER`. The API is https://beoni-api.YOUR_DOMAIN. The database is `beoni_oms` on the shared Postgres; open it from pgAdmin. |
 | Keycloak | https://keycloak.YOUR_DOMAIN when the data stack is running. Admin user and password are `KEYCLOAK_ADMIN` and `KEYCLOAK_ADMIN_PASSWORD`. The database role is created in Postgres on first start. |
 | RedisInsight | https://redisinsight.YOUR_DOMAIN. Add a database with host `redis`, port `6379`, and `REDIS_PASSWORD`. |
 | AdGuard | Only present after `--with-adguard`. See below. |

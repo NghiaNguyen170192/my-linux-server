@@ -180,7 +180,6 @@ jobs:
               "JUPYTER_TOKEN": os.environ["JUPYTER_TOKEN"],
               "N8N_ENCRYPTION_KEY": os.environ["N8N_ENCRYPTION_KEY"],
               "N8N_RUNNERS_AUTH_TOKEN": os.environ["N8N_RUNNERS_AUTH_TOKEN"],
-              "CERTBOT_BEONI_WILDCARD_DOMAIN": f"*.beoni.{domain}",
           }
           if os.environ.get("DEPLOY_BEONI") == "true":
               values.update({
@@ -376,9 +375,9 @@ jobs:
               api("PATCH", f"/zones/{zone_id}/dns_records/{current['id']}", body)
               print(f"updated {fqdn}")
 
-          # *.domain does not cover api.beoni.domain, so the extra label needs its own wildcard.
+          # api.beoni.domain is a second label. Cloudflare's free certificate cannot cover it.
           upsert(f"beoni.{domain}")
-          upsert(f"*.beoni.{domain}")
+          upsert(f"beoni-api.{domain}")
           PY
 
       - name: Reload nginx

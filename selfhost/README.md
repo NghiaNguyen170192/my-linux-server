@@ -42,7 +42,7 @@ Airflow settings come from `data/docker-compose.yml` and `.env`. There is no che
 
 ## beoni-oms
 
-`beoni.YOUR_DOMAIN` and `api.beoni.YOUR_DOMAIN` are the `beoni` profile in `data/docker-compose.yml`. They use the shared Postgres (database `beoni_oms`, role `beoni`). nginx already proxies them. pgAdmin is the database UI. There is no Traefik and no Adminer.
+`beoni.YOUR_DOMAIN` is the dashboard and `beoni-api.YOUR_DOMAIN` is the API. Both are one label under `*.YOUR_DOMAIN`, which is the name Cloudflare's free certificate can serve. They use the shared Postgres (database `beoni_oms`, role `beoni`). nginx proxies them. pgAdmin is the database UI.
 
 Images are `${DOCKERHUB_USERNAME}/beoni-oms-backend` and `${DOCKERHUB_USERNAME}/beoni-oms-frontend` on Docker Hub. The beoni-oms repo publishes them from `.github/workflows/publish-images.yml` on each push to `master`.
 
@@ -61,6 +61,6 @@ The same `DOCKERHUB_USERNAME` and a token that can push go on the beoni-oms repo
 
 **Deploy:** publish the images first, then run Deploy here with **containers** and **beoni** checked. That writes the secrets, creates the Cloudflare records below, pulls the images, creates the database, and runs migrations.
 
-**Cloudflare DNS:** `*.YOUR_DOMAIN` does not cover `api.beoni.YOUR_DOMAIN`. The workflow creates proxied `A` records `beoni` and `*.beoni` pointing at the VPS. The certificate requests `*.YOUR_DOMAIN` and `*.beoni.YOUR_DOMAIN`. `beoni.YOUR_DOMAIN` is already inside the first wildcard, so it is not listed again.
+**Cloudflare DNS:** Deploy creates proxied `A` records for `beoni` and `beoni-api`. `api.beoni.YOUR_DOMAIN` stays broken on the free plan because Cloudflare's certificate only covers one label.
 
 In pgAdmin, add a server with host `postgres`, user `beoni`, database `beoni_oms`.

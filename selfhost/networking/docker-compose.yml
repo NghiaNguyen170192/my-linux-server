@@ -43,8 +43,6 @@ services:
       - ${CERTBOT_DOMAIN}
       - -d
       - ${CERTBOT_WILDCARD_DOMAIN}
-      - -d
-      - ${CERTBOT_BEONI_WILDCARD_DOMAIN}
 
 networks:
   nginx-network:
